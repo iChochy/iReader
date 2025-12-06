@@ -6,21 +6,21 @@
 可以自己制作自己需要的学习资源，通过外挂资源的模式实现在线点读学习。
 
 ## 系统使用
-系统地址：[https://iReader.ichochy.com](https://iReader.ichochy.com)
+系统地址：[https://tap.ichochy.com](https://tap.ichochy.com)
 
 系统默认资源为：  
 《译林英语》4A课程：[https://github.com/QiLoong/YL-English-Book](https://github.com/QiLoong/YL-English-Book)
 
 通过`bookPath`参数外挂加载资源:  
-外挂资源：[https://iReader.ichochy.com?bookPath=https://yl.mleo.site/4A](https://iReader.ichochy.com?bookPath=https://yl.mleo.site/4A)
+外挂资源：[https://tap.ichochy.com?bookPath=https://yl.mleo.site/4A](https://tap.ichochy.com?bookPath=https://yl.mleo.site/4A)
 
 ## 外挂资源
 资源内容参考：[https://github.com/QiLoong/YL-English-Book](https://github.com/QiLoong/YL-English-Book)
 
 ## 系统截图
-![mobile](https://iReader.ichochy.com/screenshot/mobile.png)
+![mobile](https://tap.ichochy.com/screenshot/mobile.png)
 
-![pc](https://iReader.ichochy.com/screenshot/pc.png)
+![pc](https://tap.ichochy.com/screenshot/pc.png)
 
 ## 系统功能：
 1. 单句点读，点击单句可以单句点读
