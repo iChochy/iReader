@@ -6,7 +6,7 @@
 可以自己制作自己需要的学习资源，通过外挂资源的模式实现在线点读学习。
 
 ## 系统使用
-系统地址：[https://tap.ichochy.com](https://tap.ichochy.com)
+系统地址：[https://tap.ichochy.com](https://tap.ichoqchy.com)
 
 系统默认资源为：  
 《译林英语》4A课程：[https://github.com/QiLoong/YL-English-Book](https://github.com/QiLoong/YL-English-Book)
@@ -16,11 +16,6 @@
 
 ## 外挂资源
 资源内容参考：[https://github.com/QiLoong/YL-English-Book](https://github.com/QiLoong/YL-English-Book)
-
-## 系统截图
-![mobile](https://tap.ichochy.com/screenshot/mobile.png)
-
-![pc](https://tap.ichochy.com/screenshot/pc.png)
 
 ## 系统功能：
 1. 单句点读，点击单句可以单句点读
@@ -32,14 +27,14 @@
 7. 外挂资源，通过参数bookPath，外挂加载自己的学习资源
 8. 主题切换，明、暗主题随意切换
 
-## 本地部署
-Nginx 部署：
+## 本地部署 Nginx
 
-### 下载系统
+### 下载项目
 下载地址：[https://github.com/iChochy/iReader/archive/refs/heads/main.zip](https://github.com/iChochy/iReader/archive/refs/heads/main.zip)  
-下载并解压，放入用户目录
+下载并解压，放入用户目录，如：`/Users/iChochy/iReader`
 
 ### 安装Nginx
+
 ```bash
 brew install nginx
 ```
@@ -62,11 +57,11 @@ nginx version: nginx/1.29.3
         #access_log  logs/host.access.log  main;
 
         location / {
-            root   /Users/iChochy/iReader/docs;
+            root   /Users/iChochy/iReader;
             index  index.html index.htm;
         }
 ```
-将`root`参数指定到项目的`docs`目录
+将`root`参数指向项目的目录`/Users/iChochy/iReader`
 
 ### 运行Nginx
 ```bash
@@ -75,5 +70,13 @@ brew services start nginx
 
 ### 访问系统
 本地地址：[http://localhost](http://localhost)   
-浏览器访问地址查看系统  
-注意监听端口: `listen 80` 
+浏览器访问地址，查看点读系统  
+
+注: 监听端口: `listen 80`
+
+## 系统截图
+Mobile:  
+![mobile](https://tap.ichochy.com/screenshot/mobile.png)
+
+PC:  
+![pc](https://tap.ichochy.com/screenshot/pc.png)
