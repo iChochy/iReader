@@ -75,8 +75,8 @@ brew services start nginx
 注: 监听端口: `listen 80`
 
 ## 系统截图
-Mobile:  
+### Mobile:  
 ![mobile](https://tap.ichochy.com/screenshot/mobile.png)
 
-PC:  
+### PC:  
 ![pc](https://tap.ichochy.com/screenshot/pc.png)

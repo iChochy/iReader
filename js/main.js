@@ -5,8 +5,8 @@
 // Update: 2025/12/5 19:41
 // Copyright (c) 2025.
 
-const DEFAULT_BOOK_KEY = 'YL4A';
-const DEFAULT_BOOK_PATH = 'https://yl.mleo.site/4A';
+const DEFAULT_BOOK_KEY = 'YL4B';
+const DEFAULT_BOOK_PATH = 'https://yl.mleo.site/4B';
 
 // LRC 解析器
 class LRCParser {
