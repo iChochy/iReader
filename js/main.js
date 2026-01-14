@@ -47,7 +47,7 @@ class ReadingSystem {
     this.currentLyrics = [];
     this.currentLyricIndex = -1;
     this.playMode = 'single'; // 'single' 或 'continuous'
-    this.singlePlayEndTime = null; // 单句播放的结束时间
+    this.singlePlayEndTime = -1; // 单句播放的结束时间
     this.playbackRate = 1.0; // 播放速度
     this.availableSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]; // 可选速度
     this.currentUnitIndex = -1; // 当前课件索引
@@ -65,9 +65,9 @@ class ReadingSystem {
 
   async init() {
     await this.loadData();
-    await this.loadUnitInfo();
+    await this.loadBook();
+    this.renderBookList();
     this.setupEventListeners();
-    this.renderUnitList();
     await this.loadUnit();
   }
 
@@ -103,11 +103,10 @@ class ReadingSystem {
   }
 
 
-  async loadUnitInfo() {
+  async loadBook() {
     try {
       const response = await fetch(`${this.bookPath}/book.json`);
       const data = await response.json();
-
       // 处理units，添加完整路径和索引作为id
       this.units = data.units.map((unit, index) => ({
         ...unit,
@@ -133,7 +132,7 @@ class ReadingSystem {
     }
   }
 
-  renderUnitList() {
+  renderBookList() {
     // 桌面端列表
     this.unitListContainer.innerHTML = this.units
       .map(
@@ -209,13 +208,14 @@ class ReadingSystem {
       this.renderLyrics();
     } catch (error) {
       console.error('加载歌词失败:', error);
-      this.lyricsDisplay.innerHTML = '<p class="placeholder">歌词加载失败</p>';
+      this.lyricsDisplay.innerHTML = '<p class="placeholder">加载失败</p>';
     }
 
     // 加载音频
     this.audioPlayer.src = unit.audio;
     this.audioPlayer.load();
-
+    // 加载播放时间
+    this.loadPlayTime()
     // 加载保存的播放速度
     this.loadSavedSpeed();
   }
@@ -288,6 +288,8 @@ class ReadingSystem {
         const index = parseInt(line.dataset.index);
         const time = parseFloat(line.dataset.time);
         this.playLyricAtIndex(index, time);
+        //存储播放时间
+        localStorage.setItem(`${this.bookPath}/${this.currentUnitIndex}/playTime`,time);
       });
     });
   }
@@ -320,8 +322,8 @@ class ReadingSystem {
       // 当播放时间达到或超过下一句开始时间时，暂停播放
       if (currentTime >= this.singlePlayEndTime && this.singlePlayEndTime !== this.audioPlayer.duration) {
         this.audioPlayer.pause();
-        //冗余提前0.1S，修正播放当前句后，字幕跳到下一句的问题
-        this.audioPlayer.currentTime = this.singlePlayEndTime - 0.1;
+        //冗余提前0.01S，修正播放当前句后，字幕跳到下一句的问题
+        this.audioPlayer.currentTime = this.singlePlayEndTime-0.01;
         this.singlePlayEndTime = null;
         console.log('单句播放完成');
       }
@@ -447,6 +449,13 @@ class ReadingSystem {
     }
   }
 
+  loadPlayTime() {
+    //获取播放时间
+    const time = localStorage.getItem(`${this.bookPath}/${this.currentUnitIndex}/playTime`);
+    if (time) {
+      this.audioPlayer.currentTime = parseFloat(time);
+    }
+  }
   loadSavedSpeed() {
     // 从本地存储加载保存的速度
     const savedSpeed = localStorage.getItem('playbackRate');

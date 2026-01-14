@@ -69,12 +69,32 @@ body {
     flex-direction: column;
 }
 
+.like-and-support{
+    font-size: 12px;
+    padding: 10px;
+    text-align: center;
+}
+.like-and-support a{
+    color: var(--text-secondary);;
+    text-decoration: none;
+}
+
+.footer{
+    padding: 5px;
+    text-align: center;
+    font-size: 12px;
+}
+.footer a{
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
 /* 头部样式 - Apple 风格 */
 .app-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 48px 60px;
+    padding: 20px 40px;
     background: var(--bg-primary);
     border-bottom: 1px solid var(--border-color);
     transition: all 0.3s ease;
@@ -277,7 +297,7 @@ body.dark-theme .unit-item.active {
 /* 右侧播放器区域 - Apple 内容区风格 */
 .player-section {
     background: var(--bg-primary);
-    padding: 32px 48px;
+    padding: 10px 24px;
     transition: background-color 0.3s ease;
     height: 100%;
     overflow-y: auto;
@@ -363,7 +383,7 @@ body.dark-theme .book-cover:hover {
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 16px 20px;
+    padding: 10px;
     background: var(--bg-tertiary);
     border-radius: 12px;
     transition: all 0.3s ease;
@@ -902,7 +922,7 @@ body.dark-theme .lyric-line.active {
     display: flex;
     justify-content: center;
     gap: 10px;
-    margin: 20px 0;
+    margin: 10px 0;
 }
 
 .nav-btn {
@@ -968,15 +988,8 @@ body.dark-theme .nav-btn {
         overflow: auto;
     }
 
-    #app {
-        height: auto;
-        min-height: 100vh;
-    }
-
     .container {
         grid-template-columns: 1fr;
-        overflow: auto;
-        min-height: auto;
     }
 
     /* 隐藏桌面端侧边栏 */
@@ -984,18 +997,8 @@ body.dark-theme .nav-btn {
         display: none;
     }
 
-
     .player-section {
-        height: auto;
-        min-height: calc(100vh - 140px);
-        overflow: visible;
-        padding: 10px 16px;
-    }
-
-    .lyrics-container {
-        max-height: none;
-        min-height: 400px;
-        overflow-y: visible;
+        padding: 5px;
     }
 
     .app-header {
@@ -1078,13 +1081,13 @@ body.dark-theme .nav-btn {
     }
 
     .audio-player {
-        margin-bottom: 16px;
+        margin-bottom: 5px;
     }
 
     .custom-player {
         flex-direction: row;
         gap: 12px;
-        padding: 10px 15px;
+        padding: 5px 10px;
     }
 
     .play-btn {
@@ -1132,7 +1135,7 @@ body.dark-theme .nav-btn {
         display: flex;
         justify-content: center;
         gap: 5px;
-        margin: 10px 0;
+        margin: 5px 0;
     }
 
     .nav-btn {
