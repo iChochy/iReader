@@ -11,10 +11,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="专业英语在线点读与跟读系统，支持逐句点读、连续播放与双语歌词同步。" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <link rel="icon" href="/favicon.png" type="image/png">
-  <link rel="apple-touch-icon" href="/favicon.png">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="favicon.png">
   <title>英语在线点读系统</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -25,7 +26,9 @@
       <h1>英语在线点读系统</h1>
       <p class="subtitle">English Interactive Reading System</p>
     </div>
-    <button id="themeToggle" class="theme-toggle" aria-label="切换主题">
+    <div class="header-actions">
+      <span class="status-pill">iReader</span>
+      <button id="themeToggle" class="theme-toggle" aria-label="切换主题">
       <svg class="sun-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <circle cx="10" cy="10" r="4" stroke="currentColor" stroke-width="1.5" />
         <path
@@ -37,7 +40,8 @@
           d="M17.5 11.18C16.82 11.39 16.11 11.5 15.37 11.5C11.47 11.5 8.31 8.34 8.31 4.44C8.31 3.7 8.42 2.99 8.63 2.31C5.46 3.07 3 5.92 3 9.37C3 13.27 6.16 16.43 10.06 16.43C13.51 16.43 16.36 13.97 17.12 10.8"
           stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
-    </button>
+      </button>
+    </div>
   </header>
 
   <div class="container">
@@ -50,18 +54,19 @@
     <!-- 右侧：播放器和歌词 -->
     <main class="player-section">
 
-      <div class="player-info">
+      <div class="book-info">
         <img id="bookCover" src="" alt="课本封面" class="book-cover" />
         <div class="unit-info">
           <div class="unit-title-group">
-            <h2 id="currentUnit">正在加载...</h2>
-            <p id="bookName" class="book-name"></p>
+            <h2 id="bookName" class="book-name"></h2>
+            <p id="bookLevel" class="book-level"></p>
           </div>
         </div>
       </div>
 
       <!-- 上一课/下一课导航按钮 -->
-      <div class="navigation-buttons">
+      <section class="control-panel" aria-label="课程与播放控制区">
+        <div class="navigation-buttons">
         <button id="prevUnitBtn" class="nav-btn prev-btn" title="上一课">
           <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
             <path d="M12 16L7 11L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -87,13 +92,13 @@
                   stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
-      </div>
+        </div>
 
-      <!-- 音频播放器 -->
-      <div class="audio-player">
-        <audio id="audioPlayer"></audio>
-        <div class="custom-player">
-          <button id="playPauseBtn" class="play-btn">
+        <!-- 音频播放器 -->
+        <div class="audio-player">
+          <audio id="audioPlayer"></audio>
+          <div class="custom-player">
+            <button id="playPauseBtn" class="play-btn" aria-label="播放或暂停">
             <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z" />
             </svg>
@@ -109,25 +114,26 @@
             <div class="progress-bar" id="progressBar">
               <div class="progress-fill" id="progressFill"></div>
               <div class="progress-handle" id="progressHandle"></div>
+              </div>
             </div>
+            <button id="speedBtn" class="speed-btn" title="播放速度">
+              <span id="speedText">1.0x</span>
+            </button>
           </div>
-          <button id="speedBtn" class="speed-btn" title="播放速度">
-            <span id="speedText">1.0x</span>
-          </button>
         </div>
-      </div>
+      </section>
 
       <!-- 歌词显示区域 -->
-      <div class="lyrics-container">
+      <section class="lyrics-container" aria-label="双语歌词区">
         <div id="lyricsDisplay" class="lyrics-display">
           <p class="placeholder">选择一个Unit开始学习...</p>
         </div>
         <div class="like-and-support">
             <p>---谢谢点赞支持---</p>
             <p>❤️❤️❤️</p>
-            <p><a target="_blank" href="https://tap.ichochy.com">tap.ichochy.com</a></p>
+            <button id="supportBtn" class="support-btn" type="button">打赏支持</button>
         </div>
-      </div>
+      </section>
     </main>
   </div>
 
@@ -135,6 +141,28 @@
     <a  target="_blank"  href="https://github.com/iChochy/iReader"><span>©2026 iChochy.</span></a>
   </footer>
 
+</div>
+
+<div id="supportModal" class="support-modal" aria-hidden="true" role="dialog" aria-labelledby="supportModalTitle">
+  <div class="support-modal-card">
+    <button id="supportCloseBtn" class="support-close-btn" type="button" aria-label="关闭弹窗">×</button>
+    <h3 id="supportModalTitle">打赏支持</h3>
+    <div class="support-text">
+    <p>80后码农×白血病（CMML）患者，
+      工作已停，药费没停，
+      如果我写的东西对您有用，
+      请打赏点生命值。</p>
+    <p>🙏🙏🙏</p>
+    <p>再次谢谢！</p>
+    </div>
+    <img
+      class="support-qr"
+      src="https://ichochy.com/sponsor.jpg"
+      alt="赞助二维码"
+      loading="lazy"
+    />
+    <p class="support-link"><a target="_blank" href="https://tap.ichochy.com">https://tap.ichochy.com</a></p>
+  </div>
 </div>
 
 <script src="js/main.js"></script>

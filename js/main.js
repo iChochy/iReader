@@ -51,13 +51,24 @@ class ReadingSystem {
     this.playbackRate = 1.0; // 播放速度
     this.availableSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]; // 可选速度
     this.currentUnitIndex = -1; // 当前课件索引
+    this.isProgressDragging = false;
+    this.savedPlayTime = 0;
 
     this.audioPlayer = document.getElementById('audioPlayer');
     this.lyricsDisplay = document.getElementById('lyricsDisplay');
-    this.currentUnitTitle = document.getElementById('currentUnit');
+    this.lyricsContainer = document.querySelector('.lyrics-container');
     this.bookNameEl = document.getElementById('bookName');
+    this.bookLevelEL = document.getElementById('bookLevel');
     this.unitListContainer = document.getElementById('unitListContainer');
     this.playModeBtn = document.getElementById('playModeBtn');
+    this.playPauseBtn = document.getElementById('playPauseBtn');
+    this.progressBar = document.getElementById('progressBar');
+    this.progressFill = document.getElementById('progressFill');
+    this.progressHandle = document.getElementById('progressHandle');
+    this.currentTimeEl = document.getElementById('currentTime');
+    this.durationEl = document.getElementById('duration');
+    this.speedBtn = document.getElementById('speedBtn');
+    this.speedText = document.getElementById('speedText');
 
     this.init();
   }
@@ -118,7 +129,10 @@ class ReadingSystem {
 
       // 更新课本名称显示
       if (this.bookNameEl) {
-        this.bookNameEl.textContent = `${data.bookName} ${data.bookLevel}`;
+        this.bookNameEl.textContent = `《${data.bookName}》`;
+      }
+      if (this.bookLevelEL) {
+        this.bookLevelEL.textContent = `${data.bookLevel}`;
       }
 
       // 更新封面图片
@@ -137,9 +151,8 @@ class ReadingSystem {
     this.unitListContainer.innerHTML = this.units
       .map(
         (unit, index) => `
-      <div class="unit-item" data-unit-index="${index}">
+      <div class="unit-item" data-unit-index="${index}" tabindex="0" role="button" aria-label="打开 ${unit.title}">
         <h3>${unit.title}</h3>
-        <p>点击开始学习</p>
       </div>
     `
       )
@@ -150,6 +163,13 @@ class ReadingSystem {
       item.addEventListener('click', () => {
         const unitIndex = parseInt(item.dataset.unitIndex);
         this.loadUnitByIndex(unitIndex);
+      });
+      item.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          const unitIndex = parseInt(item.dataset.unitIndex);
+          this.loadUnitByIndex(unitIndex);
+        }
       });
     });
 
@@ -190,7 +210,7 @@ class ReadingSystem {
 
     const unit = this.units[unitIndex];
     if (!unit) return;
-    this.currentUnitTitle.textContent = unit.title;
+
     // 重置播放器状态
 
     this.resetPlayer();
@@ -215,7 +235,7 @@ class ReadingSystem {
     this.audioPlayer.src = unit.audio;
     this.audioPlayer.load();
     // 加载播放时间
-    this.loadPlayTime()
+    this.loadPlayTime();
     // 加载保存的播放速度
     this.loadSavedSpeed();
   }
@@ -228,15 +248,10 @@ class ReadingSystem {
     this.audioPlayer.currentTime = 0;
 
     // 重置进度条
-    const progressFill = document.getElementById('progressFill');
-    const progressHandle = document.getElementById('progressHandle');
-    const currentTimeEl = document.getElementById('currentTime');
-    const durationEl = document.getElementById('duration');
-
-    if (progressFill) progressFill.style.width = '0%';
-    if (progressHandle) progressHandle.style.left = '0%';
-    if (currentTimeEl) currentTimeEl.textContent = '0:00';
-    if (durationEl) durationEl.textContent = '0:00';
+    if (this.progressFill) this.progressFill.style.width = '0%';
+    if (this.progressHandle) this.progressHandle.style.left = '0%';
+    if (this.currentTimeEl) this.currentTimeEl.textContent = '0:00';
+    if (this.durationEl) this.durationEl.textContent = '0:00';
 
     // 重置播放按钮状态
     this.updatePlayButton();
@@ -245,7 +260,6 @@ class ReadingSystem {
     this.currentLyricIndex = -1;
     this.singlePlayEndTime = null;
 
-    console.log('播放器已重置');
   }
 
   updateActiveUnit(unitIndex) {
@@ -274,7 +288,7 @@ class ReadingSystem {
     this.lyricsDisplay.innerHTML = this.currentLyrics
       .map(
         (lyric, index) => `
-      <div class="lyric-line" data-index="${index}" data-time="${lyric.time}">
+      <div class="lyric-line" data-index="${index}" data-time="${lyric.time}" tabindex="0" role="button" aria-label="播放第 ${index + 1} 句">
         <div class="lyric-text">${lyric.english}</div>
         ${lyric.chinese ? `<div class="lyric-translation">${lyric.chinese}</div>` : ''}
       </div>
@@ -289,7 +303,16 @@ class ReadingSystem {
         const time = parseFloat(line.dataset.time);
         this.playLyricAtIndex(index, time);
         //存储播放时间
-        localStorage.setItem(`${this.bookPath}/${this.currentUnitIndex}/playTime`,time);
+        localStorage.setItem(`${this.bookPath}/${this.currentUnitIndex}/playTime`, time);
+      });
+      line.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          const index = parseInt(line.dataset.index);
+          const time = parseFloat(line.dataset.time);
+          this.playLyricAtIndex(index, time);
+          localStorage.setItem(`${this.bookPath}/${this.currentUnitIndex}/playTime`, time);
+        }
       });
     });
   }
@@ -323,20 +346,15 @@ class ReadingSystem {
       if (currentTime >= this.singlePlayEndTime && this.singlePlayEndTime !== this.audioPlayer.duration) {
         this.audioPlayer.pause();
         //冗余提前0.01S，修正播放当前句后，字幕跳到下一句的问题
-        this.audioPlayer.currentTime = this.singlePlayEndTime-0.01;
+        this.audioPlayer.currentTime = this.singlePlayEndTime - 0.01;
         this.singlePlayEndTime = null;
-        console.log('单句播放完成');
       }
     }
   }
 
   setupCustomPlayer() {
-    const playPauseBtn = document.getElementById('playPauseBtn');
-    const progressBar = document.getElementById('progressBar');
-    const speedBtn = document.getElementById('speedBtn');
-
     // 播放/暂停按钮
-    playPauseBtn.addEventListener('click', () => {
+    this.playPauseBtn.addEventListener('click', () => {
       if (this.audioPlayer.paused) {
         this.audioPlayer.play();
       } else {
@@ -345,68 +363,75 @@ class ReadingSystem {
     });
 
     // 速度调节按钮
-    speedBtn.addEventListener('click', () => {
+    this.speedBtn.addEventListener('click', () => {
       this.cyclePlaybackSpeed();
     });
 
-    // 进度条点击
-    progressBar.addEventListener('click', (e) => {
-      const rect = progressBar.getBoundingClientRect();
-      const percent = (e.clientX - rect.left) / rect.width;
+    const seekByClientX = (clientX) => {
+      if (!this.audioPlayer.duration) return;
+      const rect = this.progressBar.getBoundingClientRect();
+      const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       this.audioPlayer.currentTime = percent * this.audioPlayer.duration;
+    };
+
+    this.progressBar.addEventListener('click', (event) => {
+      seekByClientX(event.clientX);
     });
 
-    // 进度条拖动
-    let isDragging = false;
-    const progressHandle = document.getElementById('progressHandle');
-
-    progressBar.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      this.updateProgressByMouse(e);
+    this.progressBar.addEventListener('mousedown', (event) => {
+      this.isProgressDragging = true;
+      seekByClientX(event.clientX);
     });
 
-    document.addEventListener('mousemove', (e) => {
-      if (isDragging) {
-        this.updateProgressByMouse(e);
+    document.addEventListener('mousemove', (event) => {
+      if (this.isProgressDragging) {
+        seekByClientX(event.clientX);
       }
     });
 
     document.addEventListener('mouseup', () => {
-      isDragging = false;
+      this.isProgressDragging = false;
+    });
+
+    this.progressBar.addEventListener('touchstart', (event) => {
+      this.isProgressDragging = true;
+      seekByClientX(event.touches[0].clientX);
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (event) => {
+      if (this.isProgressDragging && event.touches[0]) {
+        seekByClientX(event.touches[0].clientX);
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+      this.isProgressDragging = false;
     });
   }
 
-  updateProgressByMouse(e) {
-    const progressBar = document.getElementById('progressBar');
-    const rect = progressBar.getBoundingClientRect();
-    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    this.audioPlayer.currentTime = percent * this.audioPlayer.duration;
-  }
-
   updateProgress() {
-    const progressFill = document.getElementById('progressFill');
-    const progressHandle = document.getElementById('progressHandle');
-    const currentTimeEl = document.getElementById('currentTime');
-
-    if (this.audioPlayer.duration) {
+    if (this.audioPlayer.duration && !this.isProgressDragging) {
       const percent = (this.audioPlayer.currentTime / this.audioPlayer.duration) * 100;
-      progressFill.style.width = percent + '%';
-      progressHandle.style.left = percent + '%';
-      currentTimeEl.textContent = this.formatTime(this.audioPlayer.currentTime);
+      this.progressFill.style.width = `${percent}%`;
+      this.progressHandle.style.left = `${percent}%`;
+      this.currentTimeEl.textContent = this.formatTime(this.audioPlayer.currentTime);
     }
   }
 
   updateDuration() {
-    const durationEl = document.getElementById('duration');
-    durationEl.textContent = this.formatTime(this.audioPlayer.duration);
+    this.durationEl.textContent = this.formatTime(this.audioPlayer.duration);
+    if (this.savedPlayTime > 0 && this.audioPlayer.duration) {
+      this.audioPlayer.currentTime = Math.min(this.savedPlayTime, this.audioPlayer.duration - 0.1);
+      this.savedPlayTime = 0;
+      this.updateProgress();
+    }
   }
 
   updatePlayButton() {
-    const playPauseBtn = document.getElementById('playPauseBtn');
     if (this.audioPlayer.paused) {
-      playPauseBtn.classList.remove('playing');
+      this.playPauseBtn.classList.remove('playing');
     } else {
-      playPauseBtn.classList.add('playing');
+      this.playPauseBtn.classList.add('playing');
     }
   }
 
@@ -432,28 +457,24 @@ class ReadingSystem {
     // 保存到本地存储
     localStorage.setItem('playbackRate', this.playbackRate);
 
-    console.log(`播放速度: ${this.playbackRate}x`);
   }
 
   updateSpeedButton() {
-    const speedText = document.getElementById('speedText');
-    const speedBtn = document.getElementById('speedBtn');
-
-    speedText.textContent = `${this.playbackRate}x`;
+    this.speedText.textContent = `${this.playbackRate}x`;
 
     // 非1.0倍速时高亮显示
     if (this.playbackRate !== 1.0) {
-      speedBtn.classList.add('active');
+      this.speedBtn.classList.add('active');
     } else {
-      speedBtn.classList.remove('active');
+      this.speedBtn.classList.remove('active');
     }
   }
 
   loadPlayTime() {
-    //获取播放时间
+    // 获取播放时间，在 metadata 加载后恢复
     const time = localStorage.getItem(`${this.bookPath}/${this.currentUnitIndex}/playTime`);
     if (time) {
-      this.audioPlayer.currentTime = parseFloat(time);
+      this.savedPlayTime = parseFloat(time);
     }
   }
   loadSavedSpeed() {
@@ -492,12 +513,10 @@ class ReadingSystem {
 
     // 监听音频播放状态
     this.audioPlayer.addEventListener('play', () => {
-      console.log('播放开始');
       this.updatePlayButton();
     });
 
     this.audioPlayer.addEventListener('pause', () => {
-      console.log('播放暂停');
       // 清除单句播放结束时间
       this.singlePlayEndTime = null;
       this.updatePlayButton();
@@ -590,7 +609,6 @@ class ReadingSystem {
       this.playNextLyric();
     } else {
       // 单句模式：停止播放
-      console.log('单句播放完成');
     }
   }
 
@@ -600,8 +618,6 @@ class ReadingSystem {
       const nextLyric = this.currentLyrics[nextIndex];
       this.audioPlayer.currentTime = nextLyric.time;
       this.audioPlayer.play();
-    } else {
-      console.log('已播放到最后一句');
     }
   }
 
@@ -611,7 +627,6 @@ class ReadingSystem {
     let newIndex = -1;
     for (let i = this.currentLyrics.length - 1; i >= 0; i--) {
       if (currentTime >= this.currentLyrics[i].time) {
-        console.log(`${currentTime}:${this.currentLyrics[i].time}`);
         newIndex = i;
         break;
       }
@@ -630,15 +645,24 @@ class ReadingSystem {
         const activeLine = this.lyricsDisplay.querySelector(`[data-index="${newIndex}"]`);
         if (activeLine) {
           activeLine.classList.add('active');
-
-          // 滚动到当前歌词（居中显示）
-          activeLine.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          });
+          if (this.shouldScrollLyricIntoView(activeLine)) {
+            activeLine.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center'
+            });
+          }
         }
       }
     }
+  }
+
+  shouldScrollLyricIntoView(activeLine) {
+    if (!this.lyricsContainer) return true;
+    const containerRect = this.lyricsContainer.getBoundingClientRect();
+    const lineRect = activeLine.getBoundingClientRect();
+    const topThreshold = containerRect.top + containerRect.height * 0.22;
+    const bottomThreshold = containerRect.bottom - containerRect.height * 0.22;
+    return lineRect.top < topThreshold || lineRect.bottom > bottomThreshold;
   }
 }
 
@@ -646,6 +670,7 @@ class ReadingSystem {
 document.addEventListener('DOMContentLoaded', () => {
   new ReadingSystem();
   initThemeToggle();
+  initSupportModal();
 });
 
 // 主题切换功能
@@ -680,6 +705,43 @@ function initThemeToggle() {
       } else {
         document.body.classList.remove('dark-theme');
       }
+    }
+  });
+}
+
+function initSupportModal() {
+  const supportBtn = document.getElementById('supportBtn');
+  const supportModal = document.getElementById('supportModal');
+  const supportCloseBtn = document.getElementById('supportCloseBtn');
+
+  if (!supportBtn || !supportModal || !supportCloseBtn) {
+    return;
+  }
+
+  const openModal = () => {
+    supportModal.classList.add('open');
+    supportModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeModal = () => {
+    supportModal.classList.remove('open');
+    supportModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  };
+
+  supportBtn.addEventListener('click', openModal);
+  supportCloseBtn.addEventListener('click', closeModal);
+
+  supportModal.addEventListener('click', (event) => {
+    if (event.target === supportModal) {
+      closeModal();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && supportModal.classList.contains('open')) {
+      closeModal();
     }
   });
 }
