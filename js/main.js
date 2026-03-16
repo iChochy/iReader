@@ -6,7 +6,10 @@
 // Copyright (c) 2025.
 
 const DEFAULT_BOOK_KEY = 'YL4B';
-const DEFAULT_BOOK_PATH = 'https://yl.mleo.site/4B';
+
+const qs = (selector, root = document) => root.querySelector(selector);
+const qsa = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 // LRC 解析器
 class LRCParser {
@@ -15,7 +18,7 @@ class LRCParser {
     const lyrics = [];
 
     for (const line of lines) {
-      const match = line.match(/\[(\d{2}):(\d{2})\.(\d{3})\](.+)/);
+      const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.+)/);
       if (match) {
         const minutes = parseInt(match[1]);
         const seconds = parseInt(match[2]);
@@ -39,116 +42,181 @@ class LRCParser {
   }
 }
 
-// 点读系统主类
 class ReadingSystem {
   constructor() {
-    this.units = [];
-    this.bookPath = '';
-    this.currentLyrics = [];
-    this.currentLyricIndex = -1;
-    this.playMode = 'single'; // 'single' 或 'continuous'
-    this.singlePlayEndTime = -1; // 单句播放的结束时间
-    this.playbackRate = 1.0; // 播放速度
-    this.availableSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]; // 可选速度
-    this.currentUnitIndex = -1; // 当前课件索引
-    this.isProgressDragging = false;
-    this.savedPlayTime = 0;
+    this.state = {
+      books: [],
+      units: [],
+      bookPath: '',
+      bookKey: '',
+      currentLyrics: [],
+      currentLyricIndex: -1,
+      currentUnitIndex: -1,
+      playMode: 'single',
+      singlePlayEndTime: null,
+      playbackRate: 1.0,
+      showTranslation: true,
+      availableSpeeds: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
+      savedPlayTime: 0,
+      isProgressDragging: false
+    };
 
-    this.audioPlayer = document.getElementById('audioPlayer');
-    this.lyricsDisplay = document.getElementById('lyricsDisplay');
-    this.lyricsContainer = document.querySelector('.lyrics-container');
-    this.bookNameEl = document.getElementById('bookName');
-    this.bookLevelEL = document.getElementById('bookLevel');
-    this.unitListContainer = document.getElementById('unitListContainer');
-    this.playModeBtn = document.getElementById('playModeBtn');
-    this.playPauseBtn = document.getElementById('playPauseBtn');
-    this.progressBar = document.getElementById('progressBar');
-    this.progressFill = document.getElementById('progressFill');
-    this.progressHandle = document.getElementById('progressHandle');
-    this.currentTimeEl = document.getElementById('currentTime');
-    this.durationEl = document.getElementById('duration');
-    this.speedBtn = document.getElementById('speedBtn');
-    this.speedText = document.getElementById('speedText');
+    this.dom = {
+      audioPlayer: qs('#audioPlayer'),
+      lyricsDisplay: qs('#lyricsDisplay'),
+      lyricsContainer: qs('.lyrics-container'),
+      bookName: qs('#bookName'),
+      bookLevel: qs('#bookLevel'),
+      unitList: qs('#unitListContainer'),
+      playModeBtn: qs('#playModeBtn'),
+      playPauseBtn: qs('#playPauseBtn'),
+      progressBar: qs('#progressBar'),
+      progressFill: qs('#progressFill'),
+      progressHandle: qs('#progressHandle'),
+      currentTime: qs('#currentTime'),
+      duration: qs('#duration'),
+      speedBtn: qs('#speedBtn'),
+      speedText: qs('#speedText'),
+      bookCover: qs('#bookCover'),
+      unitSelect: qs('#unitSelect'),
+      bookSelects: qsa('.book-select'),
+      prevUnitBtn: qs('#prevUnitBtn'),
+      nextUnitBtn: qs('#nextUnitBtn'),
+      toggleTranslationBtn: qs('#toggleTranslationBtn')
+    };
+
+    this.lyricLineEls = [];
+    this.unitSelectBound = false;
+    this.unitListBound = false;
+    this.bookSelectsBound = false;
+    this.lyricsBound = false;
+    this.lrcCache = new Map();
+    this.audioPreload = new Map();
 
     this.init();
   }
 
-
   async init() {
-    await this.loadData();
-    await this.loadBook();
-    this.renderBookList();
-    this.setupEventListeners();
-    await this.loadUnit();
+    await this.loadBooks();
+    await this.applyBookFromHash();
+    this.bindEvents();
+    this.updatePlayModeUI();
+    this.loadTranslationPreference();
+    this.updateTranslationToggle();
+    await this.loadUnitFromStorage();
   }
 
-  async loadData() {
-    if (!this.getBookPathByBookPath()) {
-      await this.getBookPathByBookKey();
-    }
-  }
-
-  getBookPathByBookPath() {
-    const url = new URL(location.href);
-    const bookPath = url.searchParams.get('bookPath');
-    if (bookPath) {
-      this.bookPath = bookPath.trim();
-      return true;
-    }
-    return false;
-  }
-
-  async getBookPathByBookKey() {
-    let bookKey = location.hash.slice(1).trim();
-    if (!bookKey) {
-      bookKey = DEFAULT_BOOK_KEY;
-    }
-    const response = await fetch('data.json');
-    const data = await response.json();
-    const found = data.books.find(b => b.key === bookKey);
-    if (found && found.bookPath) {
-      this.bookPath = found.bookPath.trim();
-    } else {
-      this.bookPath = DEFAULT_BOOK_PATH;
-    }
-  }
-
-
-  async loadBook() {
+  async loadBooks() {
+    if (this.state.books.length) return this.state.books;
     try {
-      const response = await fetch(`${this.bookPath}/book.json`);
+      const response = await fetch('data.json');
       const data = await response.json();
-      // 处理units，添加完整路径和索引作为id
-      this.units = data.units.map((unit, index) => ({
+      this.state.books = Array.isArray(data.books) ? data.books : [];
+    } catch (error) {
+      console.error('加载课本数据失败:', error);
+      this.state.books = [];
+    }
+    return this.state.books;
+  }
+
+  resolveBookByKey(bookKey) {
+    if (!this.state.books.length) return null;
+    const exact = this.state.books.find((book) => book && book.key === bookKey);
+    if (exact && exact.bookPath) return exact;
+    const fallback = this.state.books.find((book) => book && book.key === DEFAULT_BOOK_KEY);
+    if (fallback && fallback.bookPath) return fallback;
+    return this.state.books.find((book) => book && book.bookPath) || null;
+  }
+
+  async applyBookFromHash() {
+    const keyFromHash = location.hash.slice(1).trim() || DEFAULT_BOOK_KEY;
+    await this.applyBookChange(keyFromHash);
+  }
+
+  async applyBookChange(bookKey) {
+    await this.loadBooks();
+    const resolved = this.resolveBookByKey(bookKey);
+
+    if (!resolved || !resolved.bookPath) {
+      this.state.bookPath = '';
+      this.state.bookKey = '';
+      this.renderEmptyState('未找到可用课本数据');
+      return;
+    }
+
+    this.state.bookKey = resolved.key || bookKey;
+    this.state.bookPath = resolved.bookPath.trim();
+
+    this.updateBookSelects();
+    await this.loadBookConfig();
+    this.renderUnitList();
+    this.renderUnitSelect();
+  }
+
+  renderEmptyState(message) {
+    if (this.dom.lyricsDisplay) {
+      this.dom.lyricsDisplay.innerHTML = `<p class="placeholder">${message}</p>`;
+    }
+    if (this.dom.unitList) {
+      this.dom.unitList.innerHTML = '';
+    }
+  }
+
+  async loadBookConfig() {
+    if (!this.state.bookPath) {
+      this.renderEmptyState('未找到可用课本数据');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${this.state.bookPath}/book.json`);
+      const data = await response.json();
+
+      this.state.units = data.units.map((unit, index) => ({
         ...unit,
         id: index + 1,
         title: unit.title,
-        audio: `${this.bookPath}/${unit.filename}.mp3`,
-        lrc: `${this.bookPath}/${unit.filename}.lrc`
+        audio: `${this.state.bookPath}/${unit.filename}.mp3`,
+        lrc: `${this.state.bookPath}/${unit.filename}.lrc`
       }));
 
-      // 更新课本名称显示
-      if (this.bookNameEl) {
-        this.bookNameEl.textContent = `《${data.bookName}》`;
+      if (this.dom.bookName) {
+        this.dom.bookName.textContent = `《${data.bookName}》`;
       }
-      if (this.bookLevelEL) {
-        this.bookLevelEL.textContent = `${data.bookLevel}`;
+      if (this.dom.bookLevel) {
+        this.dom.bookLevel.textContent = `${data.bookLevel}`;
       }
-
-      // 更新封面图片
-      const bookCover = document.getElementById('bookCover');
-      if (bookCover && data.bookCover) {
-        bookCover.src = `${this.bookPath}/${data.bookCover}`;
+      if (this.dom.bookCover && data.bookCover) {
+        this.dom.bookCover.src = `${this.state.bookPath}/${data.bookCover}`;
       }
+      this.lrcCache.clear();
+      this.audioPreload.clear();
     } catch (error) {
       console.error('加载课件配置失败:', error);
-      this.lyricsDisplay.innerHTML = `<p class="placeholder">课件配置加载失败，请检查 ${this.bookPath}/book.json 文件</p>`;
+      this.renderEmptyState(`课件配置加载失败，请检查 ${this.state.bookPath}/book.json 文件`);
     }
   }
 
-  renderBookList() {
-    // 桌面端列表
-    this.unitListContainer.innerHTML = this.units
+  updateBookSelects() {
+    if (!this.dom.bookSelects.length || !this.state.books.length) return;
+
+    const options = this.state.books
+      .filter((book) => book && book.key && book.title && book.bookPath)
+      .map((book) => `<option value="${book.key}">${book.title}</option>`)
+      .join('');
+
+    this.dom.bookSelects.forEach((select) => {
+      select.innerHTML = `<option value="">选择课本</option>${options}`;
+      if (this.state.bookKey) {
+        select.value = this.state.bookKey;
+      }
+    });
+  }
+
+  renderUnitList() {
+    if (!this.dom.unitList) return;
+
+    this.dom.unitList.innerHTML = this.state.units
       .map(
         (unit, index) => `
       <div class="unit-item" data-unit-index="${index}" tabindex="0" role="button" aria-label="打开 ${unit.title}">
@@ -157,135 +225,108 @@ class ReadingSystem {
     `
       )
       .join('');
-
-    // 为每个unit添加点击事件
-    this.unitListContainer.querySelectorAll('.unit-item').forEach((item) => {
-      item.addEventListener('click', () => {
-        const unitIndex = parseInt(item.dataset.unitIndex);
-        this.loadUnitByIndex(unitIndex);
-      });
-      item.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          const unitIndex = parseInt(item.dataset.unitIndex);
-          this.loadUnitByIndex(unitIndex);
-        }
-      });
-    });
-
-    // 移动端下拉选择器
-    const unitSelect = document.getElementById('unitSelect');
-    if (unitSelect) {
-      // 填充选项
-      const options = this.units.map(
-        (unit, index) => `<option value="${index}">${unit.title}</option>`
-      ).join('');
-      unitSelect.innerHTML = `<option value="">请选择一个Unit</option>${options}`;
-
-      // 添加变更事件
-      unitSelect.addEventListener('change', (e) => {
-        const unitIndex = parseInt(e.target.value);
-        if (unitIndex >= 0) {
-          this.loadUnitByIndex(unitIndex);
-        }
-      });
-    }
   }
 
-  async loadUnit() {
-    if (this.units.length > 0) {
-      let unitIndexValue = localStorage.getItem(`${this.bookPath}/currentUnitIndex`);
-      if (unitIndexValue) {
-        let unitIndex = parseInt(unitIndexValue);
-        await this.loadUnitByIndex(unitIndex);
-      } else {
-        await this.loadUnitByIndex(0);
-      }
-    }
+  renderUnitSelect() {
+    if (!this.dom.unitSelect) return;
+
+    const options = this.state.units
+      .map((unit, index) => `<option value="${index}">${unit.title}</option>`)
+      .join('');
+
+    this.dom.unitSelect.innerHTML = `<option value="">选择 Unit</option>${options}`;
+  }
+
+  async loadUnitFromStorage() {
+    if (!this.state.units.length) return;
+
+    const stored = localStorage.getItem(`${this.state.bookPath}/currentUnitIndex`);
+    const parsed = stored ? parseInt(stored) : 0;
+    const safeIndex = Number.isFinite(parsed)
+      ? clamp(parsed, 0, this.state.units.length - 1)
+      : 0;
+
+    await this.loadUnitByIndex(safeIndex);
   }
 
   async loadUnitByIndex(unitIndex) {
-    this.currentUnitIndex = unitIndex; // 保存当前课件索引
-    localStorage.setItem(`${this.bookPath}/currentUnitIndex`, unitIndex);
+    this.state.currentUnitIndex = unitIndex;
+    localStorage.setItem(`${this.state.bookPath}/currentUnitIndex`, unitIndex);
 
-    const unit = this.units[unitIndex];
+    const unit = this.state.units[unitIndex];
     if (!unit) return;
 
-    // 重置播放器状态
-
     this.resetPlayer();
-    // 更新桌面端UI
     this.updateActiveUnit(unitIndex);
-
-    // 更新导航按钮状态
     this.updateNavigationButtons();
 
-    // 加载歌词
     try {
-      const response = await fetch(unit.lrc);
-      const lrcText = await response.text();
-      this.currentLyrics = LRCParser.parse(lrcText);
+      let lrcText = this.lrcCache.get(unit.lrc);
+      if (!lrcText) {
+        const response = await fetch(unit.lrc);
+        lrcText = await response.text();
+        this.lrcCache.set(unit.lrc, lrcText);
+      }
+      this.state.currentLyrics = LRCParser.parse(lrcText);
       this.renderLyrics();
     } catch (error) {
       console.error('加载歌词失败:', error);
-      this.lyricsDisplay.innerHTML = '<p class="placeholder">加载失败</p>';
+      if (this.dom.lyricsDisplay) {
+        this.dom.lyricsDisplay.innerHTML = '<p class="placeholder">加载失败</p>';
+      }
     }
 
-    // 加载音频
-    this.audioPlayer.src = unit.audio;
-    this.audioPlayer.load();
-    // 加载播放时间
+    if (this.dom.audioPlayer) {
+      this.dom.audioPlayer.src = unit.audio;
+      this.dom.audioPlayer.load();
+    }
+
     this.loadPlayTime();
-    // 加载保存的播放速度
     this.loadSavedSpeed();
+    this.prefetchUnit(unitIndex + 1);
   }
 
   resetPlayer() {
-    // 暂停播放
-    this.audioPlayer.pause();
+    if (this.dom.audioPlayer) {
+      this.dom.audioPlayer.pause();
+      this.dom.audioPlayer.currentTime = 0;
+    }
 
-    // 重置播放时间
-    this.audioPlayer.currentTime = 0;
+    if (this.dom.progressFill) this.dom.progressFill.style.width = '0%';
+    if (this.dom.progressHandle) this.dom.progressHandle.style.left = '0%';
+    if (this.dom.currentTime) this.dom.currentTime.textContent = '0:00';
+    if (this.dom.duration) this.dom.duration.textContent = '0:00';
 
-    // 重置进度条
-    if (this.progressFill) this.progressFill.style.width = '0%';
-    if (this.progressHandle) this.progressHandle.style.left = '0%';
-    if (this.currentTimeEl) this.currentTimeEl.textContent = '0:00';
-    if (this.durationEl) this.durationEl.textContent = '0:00';
-
-    // 重置播放按钮状态
     this.updatePlayButton();
-
-    // 重置歌词索引
-    this.currentLyricIndex = -1;
-    this.singlePlayEndTime = null;
-
+    this.state.currentLyricIndex = -1;
+    this.state.singlePlayEndTime = null;
   }
 
   updateActiveUnit(unitIndex) {
-    // 更新桌面端UI
-    this.unitListContainer.querySelectorAll('.unit-item').forEach((item, index) => {
-      if (index === unitIndex) {
-        item.classList.add('active');
-      } else {
-        item.classList.remove('active');
-      }
-    });
+    if (this.dom.unitList) {
+      this.dom.unitList.querySelectorAll('.unit-item').forEach((item, index) => {
+        if (index === unitIndex) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+    }
 
-    // 更新移动端选择器
-    const unitSelect = document.getElementById('unitSelect');
-    if (unitSelect) {
-      unitSelect.value = unitIndex;
+    if (this.dom.unitSelect) {
+      this.dom.unitSelect.value = unitIndex;
     }
   }
 
   renderLyrics() {
-    if (this.currentLyrics.length === 0) {
-      this.lyricsDisplay.innerHTML = '<p class="placeholder">没有歌词数据</p>';
+    if (!this.dom.lyricsDisplay) return;
+
+    if (!this.state.currentLyrics.length) {
+      this.dom.lyricsDisplay.innerHTML = '<p class="placeholder">没有歌词数据</p>';
       return;
     }
 
-    this.lyricsDisplay.innerHTML = this.currentLyrics
+    this.dom.lyricsDisplay.innerHTML = this.state.currentLyrics
       .map(
         (lyric, index) => `
       <div class="lyric-line" data-index="${index}" data-time="${lyric.time}" tabindex="0" role="button" aria-label="播放第 ${index + 1} 句">
@@ -296,142 +337,78 @@ class ReadingSystem {
       )
       .join('');
 
-    // 为每行歌词添加点击事件
-    this.lyricsDisplay.querySelectorAll('.lyric-line').forEach((line) => {
-      line.addEventListener('click', () => {
-        const index = parseInt(line.dataset.index);
-        const time = parseFloat(line.dataset.time);
-        this.playLyricAtIndex(index, time);
-        //存储播放时间
-        localStorage.setItem(`${this.bookPath}/${this.currentUnitIndex}/playTime`, time);
-      });
-      line.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          const index = parseInt(line.dataset.index);
-          const time = parseFloat(line.dataset.time);
-          this.playLyricAtIndex(index, time);
-          localStorage.setItem(`${this.bookPath}/${this.currentUnitIndex}/playTime`, time);
-        }
-      });
-    });
+    this.lyricLineEls = qsa('.lyric-line', this.dom.lyricsDisplay);
+    this.state.currentLyricIndex = -1;
+  }
+
+  handleLyricActivate(line) {
+    const index = parseInt(line.dataset.index);
+    const time = parseFloat(line.dataset.time);
+    this.playLyricAtIndex(index, time);
+    this.persistPlayTime(time);
   }
 
   playLyricAtIndex(index, time) {
-    this.audioPlayer.currentTime = time;
+    if (!this.dom.audioPlayer) return;
 
-    if (this.playMode === 'single') {
-      // 单句模式：设置当前句的结束时间
-      const nextLyric = this.currentLyrics[index + 1];
-      if (nextLyric) {
-        this.singlePlayEndTime = nextLyric.time;
-      } else {
-        // 如果是最后一句，设置为音频结束时间
-        this.singlePlayEndTime = this.audioPlayer.duration;
-      }
+    this.dom.audioPlayer.currentTime = time;
+
+    if (this.state.playMode === 'single') {
+      const nextLyric = this.state.currentLyrics[index + 1];
+      this.state.singlePlayEndTime = nextLyric ? nextLyric.time : this.dom.audioPlayer.duration;
     } else {
-      // 连续模式：清除结束时间限制
-      this.singlePlayEndTime = null;
+      this.state.singlePlayEndTime = null;
     }
 
-    // 开始播放
-    this.audioPlayer.play();
+    this.dom.audioPlayer.play();
+  }
+
+  persistPlayTime(time) {
+    localStorage.setItem(`${this.state.bookPath}/${this.state.currentUnitIndex}/playTime`, time);
   }
 
   checkSinglePlayEnd() {
-    // 只在单句模式下检查
-    if (this.playMode === 'single' && this.singlePlayEndTime !== null) {
-      const currentTime = this.audioPlayer.currentTime;
-      // 当播放时间达到或超过下一句开始时间时，暂停播放
-      if (currentTime >= this.singlePlayEndTime && this.singlePlayEndTime !== this.audioPlayer.duration) {
-        this.audioPlayer.pause();
-        //冗余提前0.01S，修正播放当前句后，字幕跳到下一句的问题
-        this.audioPlayer.currentTime = this.singlePlayEndTime - 0.01;
-        this.singlePlayEndTime = null;
-      }
+    if (this.state.playMode !== 'single' || this.state.singlePlayEndTime === null || !this.dom.audioPlayer) {
+      return;
+    }
+
+    const currentTime = this.dom.audioPlayer.currentTime;
+    if (currentTime >= this.state.singlePlayEndTime && this.state.singlePlayEndTime !== this.dom.audioPlayer.duration) {
+      this.dom.audioPlayer.pause();
+      this.dom.audioPlayer.currentTime = this.state.singlePlayEndTime - 0.01;
+      this.state.singlePlayEndTime = null;
     }
   }
 
-  setupCustomPlayer() {
-    // 播放/暂停按钮
-    this.playPauseBtn.addEventListener('click', () => {
-      if (this.audioPlayer.paused) {
-        this.audioPlayer.play();
-      } else {
-        this.audioPlayer.pause();
-      }
-    });
-
-    // 速度调节按钮
-    this.speedBtn.addEventListener('click', () => {
-      this.cyclePlaybackSpeed();
-    });
-
-    const seekByClientX = (clientX) => {
-      if (!this.audioPlayer.duration) return;
-      const rect = this.progressBar.getBoundingClientRect();
-      const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      this.audioPlayer.currentTime = percent * this.audioPlayer.duration;
-    };
-
-    this.progressBar.addEventListener('click', (event) => {
-      seekByClientX(event.clientX);
-    });
-
-    this.progressBar.addEventListener('mousedown', (event) => {
-      this.isProgressDragging = true;
-      seekByClientX(event.clientX);
-    });
-
-    document.addEventListener('mousemove', (event) => {
-      if (this.isProgressDragging) {
-        seekByClientX(event.clientX);
-      }
-    });
-
-    document.addEventListener('mouseup', () => {
-      this.isProgressDragging = false;
-    });
-
-    this.progressBar.addEventListener('touchstart', (event) => {
-      this.isProgressDragging = true;
-      seekByClientX(event.touches[0].clientX);
-    }, { passive: true });
-
-    document.addEventListener('touchmove', (event) => {
-      if (this.isProgressDragging && event.touches[0]) {
-        seekByClientX(event.touches[0].clientX);
-      }
-    }, { passive: true });
-
-    document.addEventListener('touchend', () => {
-      this.isProgressDragging = false;
-    });
-  }
-
   updateProgress() {
-    if (this.audioPlayer.duration && !this.isProgressDragging) {
-      const percent = (this.audioPlayer.currentTime / this.audioPlayer.duration) * 100;
-      this.progressFill.style.width = `${percent}%`;
-      this.progressHandle.style.left = `${percent}%`;
-      this.currentTimeEl.textContent = this.formatTime(this.audioPlayer.currentTime);
+    if (!this.dom.progressFill || !this.dom.progressHandle || !this.dom.currentTime || !this.dom.audioPlayer) return;
+
+    if (this.dom.audioPlayer.duration && !this.state.isProgressDragging) {
+      const percent = (this.dom.audioPlayer.currentTime / this.dom.audioPlayer.duration) * 100;
+      this.dom.progressFill.style.width = `${percent}%`;
+      this.dom.progressHandle.style.left = `${percent}%`;
+      this.dom.currentTime.textContent = this.formatTime(this.dom.audioPlayer.currentTime);
     }
   }
 
   updateDuration() {
-    this.durationEl.textContent = this.formatTime(this.audioPlayer.duration);
-    if (this.savedPlayTime > 0 && this.audioPlayer.duration) {
-      this.audioPlayer.currentTime = Math.min(this.savedPlayTime, this.audioPlayer.duration - 0.1);
-      this.savedPlayTime = 0;
+    if (!this.dom.duration || !this.dom.audioPlayer) return;
+
+    this.dom.duration.textContent = this.formatTime(this.dom.audioPlayer.duration);
+    if (this.state.savedPlayTime > 0 && this.dom.audioPlayer.duration) {
+      this.dom.audioPlayer.currentTime = Math.min(this.state.savedPlayTime, this.dom.audioPlayer.duration - 0.1);
+      this.state.savedPlayTime = 0;
       this.updateProgress();
     }
   }
 
   updatePlayButton() {
-    if (this.audioPlayer.paused) {
-      this.playPauseBtn.classList.remove('playing');
+    if (!this.dom.playPauseBtn || !this.dom.audioPlayer) return;
+
+    if (this.dom.audioPlayer.paused) {
+      this.dom.playPauseBtn.classList.remove('playing');
     } else {
-      this.playPauseBtn.classList.add('playing');
+      this.dom.playPauseBtn.classList.add('playing');
     }
   }
 
@@ -443,226 +420,374 @@ class ReadingSystem {
   }
 
   cyclePlaybackSpeed() {
-    // 循环切换播放速度
-    const currentIndex = this.availableSpeeds.indexOf(this.playbackRate);
-    const nextIndex = (currentIndex + 1) % this.availableSpeeds.length;
-    this.playbackRate = this.availableSpeeds[nextIndex];
+    const currentIndex = this.state.availableSpeeds.indexOf(this.state.playbackRate);
+    const nextIndex = (currentIndex + 1) % this.state.availableSpeeds.length;
+    this.state.playbackRate = this.state.availableSpeeds[nextIndex];
 
-    // 应用新速度
-    this.audioPlayer.playbackRate = this.playbackRate;
+    if (this.dom.audioPlayer) {
+      this.dom.audioPlayer.playbackRate = this.state.playbackRate;
+    }
 
-    // 更新按钮显示
     this.updateSpeedButton();
-
-    // 保存到本地存储
-    localStorage.setItem('playbackRate', this.playbackRate);
-
+    localStorage.setItem('playbackRate', this.state.playbackRate);
   }
 
   updateSpeedButton() {
-    this.speedText.textContent = `${this.playbackRate}x`;
+    if (!this.dom.speedText || !this.dom.speedBtn) return;
 
-    // 非1.0倍速时高亮显示
-    if (this.playbackRate !== 1.0) {
-      this.speedBtn.classList.add('active');
+    this.dom.speedText.textContent = `${this.state.playbackRate}x`;
+
+    if (this.state.playbackRate !== 1.0) {
+      this.dom.speedBtn.classList.add('active');
     } else {
-      this.speedBtn.classList.remove('active');
+      this.dom.speedBtn.classList.remove('active');
     }
   }
 
   loadPlayTime() {
-    // 获取播放时间，在 metadata 加载后恢复
-    const time = localStorage.getItem(`${this.bookPath}/${this.currentUnitIndex}/playTime`);
+    const time = localStorage.getItem(`${this.state.bookPath}/${this.state.currentUnitIndex}/playTime`);
     if (time) {
-      this.savedPlayTime = parseFloat(time);
+      const parsed = parseFloat(time);
+      if (Number.isFinite(parsed)) {
+        this.state.savedPlayTime = parsed;
+      }
     }
   }
+
   loadSavedSpeed() {
-    // 从本地存储加载保存的速度
     const savedSpeed = localStorage.getItem('playbackRate');
     if (savedSpeed) {
-      this.playbackRate = parseFloat(savedSpeed);
-      this.audioPlayer.playbackRate = this.playbackRate;
+      const parsed = parseFloat(savedSpeed);
+      if (!Number.isFinite(parsed)) return;
+      this.state.playbackRate = parsed;
+      if (this.dom.audioPlayer) {
+        this.dom.audioPlayer.playbackRate = this.state.playbackRate;
+      }
       this.updateSpeedButton();
     }
   }
 
-  setupEventListeners() {
-    // 播放模式切换
-    this.playModeBtn.addEventListener('click', () => {
-      this.togglePlayMode();
-    });
-
-    // 监听音频播放，同步歌词高亮
-    this.audioPlayer.addEventListener('timeupdate', () => {
-      this.checkSinglePlayEnd(); // 检查单句播放是否应该停止
-      this.updateLyricHighlight(); //更新歌词高亮
-      this.updateProgress(); // 更新进度条
-    });
-
-    // 监听音频加载完成
-    this.audioPlayer.addEventListener('loadedmetadata', () => {
-      this.updateDuration();
-    });
-
-    // 监听音频播放结束
-    this.audioPlayer.addEventListener('ended', () => {
-      this.handleAudioEnded();
-      this.updatePlayButton();
-    });
-
-    // 监听音频播放状态
-    this.audioPlayer.addEventListener('play', () => {
-      this.updatePlayButton();
-    });
-
-    this.audioPlayer.addEventListener('pause', () => {
-      // 清除单句播放结束时间
-      this.singlePlayEndTime = null;
-      this.updatePlayButton();
-    });
-
-    // 自定义播放控制
-    this.setupCustomPlayer();
-
-    // 上一课/下一课按钮事件监听
-    this.setupNavigationButtons();
-  }
-
-  setupNavigationButtons() {
-    const prevBtn = document.getElementById('prevUnitBtn');
-    const nextBtn = document.getElementById('nextUnitBtn');
-
-    if (prevBtn) {
-      prevBtn.addEventListener('click', () => {
-        this.loadPreviousUnit();
-      });
-    }
-
-    if (nextBtn) {
-      nextBtn.addEventListener('click', () => {
-        this.loadNextUnit();
-      });
-    }
-  }
-
   updateNavigationButtons() {
-    const prevBtn = document.getElementById('prevUnitBtn');
-    const nextBtn = document.getElementById('nextUnitBtn');
-
-    if (prevBtn) {
-      // 如果是第一课，则禁用上一课按钮
-      if (this.currentUnitIndex <= 0) {
-        prevBtn.disabled = true;
-      } else {
-        prevBtn.disabled = false;
-      }
+    if (this.dom.prevUnitBtn) {
+      this.dom.prevUnitBtn.disabled = this.state.currentUnitIndex <= 0;
     }
 
-    if (nextBtn) {
-      // 如果是最后一课，则禁用下一课按钮
-      if (this.currentUnitIndex >= this.units.length - 1) {
-        nextBtn.disabled = true;
-      } else {
-        nextBtn.disabled = false;
-      }
+    if (this.dom.nextUnitBtn) {
+      this.dom.nextUnitBtn.disabled = this.state.currentUnitIndex >= this.state.units.length - 1;
     }
   }
 
   loadPreviousUnit() {
-    if (this.currentUnitIndex > 0) {
-      this.loadUnitByIndex(this.currentUnitIndex - 1);
+    if (this.state.currentUnitIndex > 0) {
+      this.loadUnitByIndex(this.state.currentUnitIndex - 1);
     }
   }
 
   loadNextUnit() {
-    if (this.currentUnitIndex < this.units.length - 1) {
-      this.loadUnitByIndex(this.currentUnitIndex + 1);
+    if (this.state.currentUnitIndex < this.state.units.length - 1) {
+      this.loadUnitByIndex(this.state.currentUnitIndex + 1);
     }
   }
 
   togglePlayMode() {
-    // 切换模式
-    this.playMode = this.playMode === 'single' ? 'continuous' : 'single';
-    this.updatePlayModeUI();
-  }
-
-  setPlayMode(mode) {
-    this.playMode = mode;
+    this.state.playMode = this.state.playMode === 'single' ? 'continuous' : 'single';
     this.updatePlayModeUI();
   }
 
   updatePlayModeUI() {
-    // 更新按钮文字和样式
-    if (this.playMode === 'single') {
-      this.playModeBtn.title = '单句点读';
-      this.playModeBtn.classList.remove('continuous-mode');
+    if (!this.dom.playModeBtn) return;
+
+    if (this.state.playMode === 'single') {
+      this.dom.playModeBtn.title = '单句点读';
+      this.dom.playModeBtn.classList.remove('continuous-mode');
     } else {
-      this.playModeBtn.title = '连续点读';
-      this.playModeBtn.classList.add('continuous-mode');
+      this.dom.playModeBtn.title = '连续点读';
+      this.dom.playModeBtn.classList.add('continuous-mode');
     }
   }
 
   handleAudioEnded() {
-    if (this.playMode === 'continuous') {
-      // 连续播放模式：播放下一句
+    if (this.state.playMode === 'continuous') {
       this.playNextLyric();
-    } else {
-      // 单句模式：停止播放
     }
   }
 
   playNextLyric() {
-    const nextIndex = this.currentLyricIndex + 1;
-    if (nextIndex < this.currentLyrics.length) {
-      const nextLyric = this.currentLyrics[nextIndex];
-      this.audioPlayer.currentTime = nextLyric.time;
-      this.audioPlayer.play();
+    const nextIndex = this.state.currentLyricIndex + 1;
+    if (nextIndex < this.state.currentLyrics.length && this.dom.audioPlayer) {
+      const nextLyric = this.state.currentLyrics[nextIndex];
+      this.dom.audioPlayer.currentTime = nextLyric.time;
+      this.dom.audioPlayer.play();
     }
   }
 
   updateLyricHighlight() {
-    const currentTime = this.audioPlayer.currentTime;
-    // 找到当前应该高亮的歌词索引
+    if (!this.lyricLineEls.length || !this.dom.audioPlayer) return;
+
+    const currentTime = this.dom.audioPlayer.currentTime;
     let newIndex = -1;
-    for (let i = this.currentLyrics.length - 1; i >= 0; i--) {
-      if (currentTime >= this.currentLyrics[i].time) {
+    for (let i = this.state.currentLyrics.length - 1; i >= 0; i--) {
+      if (currentTime >= this.state.currentLyrics[i].time) {
         newIndex = i;
         break;
       }
     }
-    // 如果索引改变，更新高亮
-    if (newIndex !== this.currentLyricIndex) {
-      this.currentLyricIndex = newIndex;
 
-      // 移除所有高亮
-      this.lyricsDisplay.querySelectorAll('.lyric-line').forEach((line) => {
-        line.classList.remove('active');
-      });
+    if (newIndex === this.state.currentLyricIndex) return;
 
-      // 添加当前高亮
-      if (newIndex >= 0) {
-        const activeLine = this.lyricsDisplay.querySelector(`[data-index="${newIndex}"]`);
-        if (activeLine) {
-          activeLine.classList.add('active');
-          if (this.shouldScrollLyricIntoView(activeLine)) {
-            activeLine.scrollIntoView({
-              behavior: 'smooth',
-              block: 'center'
-            });
-          }
+    if (this.state.currentLyricIndex >= 0 && this.lyricLineEls[this.state.currentLyricIndex]) {
+      this.lyricLineEls[this.state.currentLyricIndex].classList.remove('active');
+      this.lyricLineEls[this.state.currentLyricIndex].classList.remove('pulse');
+    }
+
+    this.state.currentLyricIndex = newIndex;
+
+    if (newIndex >= 0) {
+      const activeLine = this.lyricLineEls[newIndex];
+      if (activeLine) {
+        activeLine.classList.add('active');
+        activeLine.classList.add('pulse');
+        if (this.shouldScrollLyricIntoView(activeLine)) {
+          activeLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }
     }
   }
 
+  prefetchUnit(unitIndex) {
+    const unit = this.state.units[unitIndex];
+    if (!unit) return;
+
+    if (unit.lrc && !this.lrcCache.has(unit.lrc)) {
+      fetch(unit.lrc)
+        .then((response) => response.text())
+        .then((text) => this.lrcCache.set(unit.lrc, text))
+        .catch(() => {});
+    }
+
+    if (unit.audio && !this.audioPreload.has(unit.audio)) {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.src = unit.audio;
+      this.audioPreload.set(unit.audio, audio);
+    }
+  }
+
   shouldScrollLyricIntoView(activeLine) {
-    if (!this.lyricsContainer) return true;
-    const containerRect = this.lyricsContainer.getBoundingClientRect();
+    if (!this.dom.lyricsContainer) return true;
+    const containerRect = this.dom.lyricsContainer.getBoundingClientRect();
     const lineRect = activeLine.getBoundingClientRect();
     const topThreshold = containerRect.top + containerRect.height * 0.22;
     const bottomThreshold = containerRect.bottom - containerRect.height * 0.22;
     return lineRect.top < topThreshold || lineRect.bottom > bottomThreshold;
+  }
+
+  bindEvents() {
+    this.bindBookSelects();
+    this.bindUnitList();
+    this.bindUnitSelect();
+    this.bindLyrics();
+    this.bindPlayerControls();
+    this.bindNavigation();
+    this.bindTranslationToggle();
+
+    window.addEventListener('hashchange', () => {
+      const newKey = location.hash.slice(1).trim() || DEFAULT_BOOK_KEY;
+      if (newKey === this.state.bookKey) return;
+      this.applyBookChange(newKey).then(() => this.loadUnitFromStorage());
+    });
+  }
+
+  bindTranslationToggle() {
+    if (!this.dom.toggleTranslationBtn) return;
+    this.dom.toggleTranslationBtn.addEventListener('click', () => {
+      this.state.showTranslation = !this.state.showTranslation;
+      localStorage.setItem('showTranslation', this.state.showTranslation ? '1' : '0');
+      this.updateTranslationToggle();
+    });
+  }
+
+  loadTranslationPreference() {
+    const stored = localStorage.getItem('showTranslation');
+    if (stored === '0') {
+      this.state.showTranslation = false;
+    }
+  }
+
+  updateTranslationToggle() {
+    if (!this.dom.toggleTranslationBtn) return;
+    if (this.state.showTranslation) {
+      document.body.classList.remove('hide-translation');
+      this.dom.toggleTranslationBtn.textContent = '英';
+      this.dom.toggleTranslationBtn.setAttribute('aria-pressed', 'true');
+    } else {
+      document.body.classList.add('hide-translation');
+      this.dom.toggleTranslationBtn.textContent = '中';
+      this.dom.toggleTranslationBtn.setAttribute('aria-pressed', 'false');
+    }
+  }
+
+  bindBookSelects() {
+    if (this.bookSelectsBound || !this.dom.bookSelects.length) return;
+    this.bookSelectsBound = true;
+
+    this.dom.bookSelects.forEach((select) => {
+      select.addEventListener('change', (event) => {
+        const target = event.target;
+        if (!target.value) return;
+        if (location.hash.slice(1) === target.value) return;
+        location.hash = target.value;
+      });
+    });
+  }
+
+  bindUnitList() {
+    if (this.unitListBound || !this.dom.unitList) return;
+    this.unitListBound = true;
+
+    this.dom.unitList.addEventListener('click', (event) => {
+      const item = event.target.closest('.unit-item');
+      if (!item) return;
+      const unitIndex = parseInt(item.dataset.unitIndex);
+      this.loadUnitByIndex(unitIndex);
+    });
+
+    this.dom.unitList.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const item = event.target.closest('.unit-item');
+      if (!item) return;
+      event.preventDefault();
+      const unitIndex = parseInt(item.dataset.unitIndex);
+      this.loadUnitByIndex(unitIndex);
+    });
+  }
+
+  bindUnitSelect() {
+    if (this.unitSelectBound || !this.dom.unitSelect) return;
+    this.unitSelectBound = true;
+
+    this.dom.unitSelect.addEventListener('change', (event) => {
+      const unitIndex = parseInt(event.target.value);
+      if (unitIndex >= 0) {
+        this.loadUnitByIndex(unitIndex);
+      }
+    });
+  }
+
+  bindLyrics() {
+    if (this.lyricsBound || !this.dom.lyricsDisplay) return;
+    this.lyricsBound = true;
+
+    this.dom.lyricsDisplay.addEventListener('click', (event) => {
+      const line = event.target.closest('.lyric-line');
+      if (!line) return;
+      this.handleLyricActivate(line);
+    });
+
+    this.dom.lyricsDisplay.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const line = event.target.closest('.lyric-line');
+      if (!line) return;
+      event.preventDefault();
+      this.handleLyricActivate(line);
+    });
+  }
+
+  bindPlayerControls() {
+    if (
+      !this.dom.playPauseBtn ||
+      !this.dom.speedBtn ||
+      !this.dom.progressBar ||
+      !this.dom.audioPlayer ||
+      !this.dom.playModeBtn
+    ) {
+      return;
+    }
+
+    this.dom.playPauseBtn.addEventListener('click', () => {
+      if (this.dom.audioPlayer.paused) {
+        this.dom.audioPlayer.play();
+      } else {
+        this.dom.audioPlayer.pause();
+      }
+    });
+
+    this.dom.speedBtn.addEventListener('click', () => {
+      this.cyclePlaybackSpeed();
+    });
+
+    const seekByClientX = (clientX) => {
+      if (!this.dom.audioPlayer.duration) return;
+      const rect = this.dom.progressBar.getBoundingClientRect();
+      const percent = clamp((clientX - rect.left) / rect.width, 0, 1);
+      this.dom.audioPlayer.currentTime = percent * this.dom.audioPlayer.duration;
+    };
+
+    this.dom.progressBar.addEventListener('click', (event) => {
+      seekByClientX(event.clientX);
+    });
+
+    this.dom.progressBar.addEventListener('pointerdown', (event) => {
+      this.state.isProgressDragging = true;
+      this.dom.progressBar.setPointerCapture(event.pointerId);
+      seekByClientX(event.clientX);
+    });
+
+    this.dom.progressBar.addEventListener('pointermove', (event) => {
+      if (!this.state.isProgressDragging) return;
+      seekByClientX(event.clientX);
+    });
+
+    this.dom.progressBar.addEventListener('pointerup', (event) => {
+      this.state.isProgressDragging = false;
+      this.dom.progressBar.releasePointerCapture(event.pointerId);
+    });
+
+    this.dom.progressBar.addEventListener('pointerleave', () => {
+      this.state.isProgressDragging = false;
+    });
+
+    this.dom.playModeBtn.addEventListener('click', () => {
+      this.togglePlayMode();
+    });
+
+    this.dom.audioPlayer.addEventListener('timeupdate', () => {
+      this.checkSinglePlayEnd();
+      this.updateLyricHighlight();
+      this.updateProgress();
+    });
+
+    this.dom.audioPlayer.addEventListener('loadedmetadata', () => {
+      this.updateDuration();
+    });
+
+    this.dom.audioPlayer.addEventListener('ended', () => {
+      this.handleAudioEnded();
+      this.updatePlayButton();
+    });
+
+    this.dom.audioPlayer.addEventListener('play', () => {
+      this.updatePlayButton();
+    });
+
+    this.dom.audioPlayer.addEventListener('pause', () => {
+      this.state.singlePlayEndTime = null;
+      this.updatePlayButton();
+    });
+  }
+
+  bindNavigation() {
+    if (this.dom.prevUnitBtn) {
+      this.dom.prevUnitBtn.addEventListener('click', () => {
+        this.loadPreviousUnit();
+      });
+    }
+
+    if (this.dom.nextUnitBtn) {
+      this.dom.nextUnitBtn.addEventListener('click', () => {
+        this.loadNextUnit();
+      });
+    }
   }
 }
 
@@ -677,30 +802,27 @@ document.addEventListener('DOMContentLoaded', () => {
 function initThemeToggle() {
   const themeToggle = document.getElementById('themeToggle');
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+  if (!themeToggle) return;
 
-  // 检查本地存储的主题设置
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme === 'dark' || (!savedTheme && prefersDark.matches)) {
     document.body.classList.add('dark-theme');
   }
 
-  // 主题切换事件
   themeToggle.addEventListener('click', () => {
     document.body.classList.toggle('dark-theme');
     const isDark = document.body.classList.contains('dark-theme');
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
 
-    // 添加切换动画
     themeToggle.style.transform = 'rotate(360deg)';
     setTimeout(() => {
       themeToggle.style.transform = '';
     }, 300);
   });
 
-  // 监听系统主题变化
-  prefersDark.addEventListener('change', (e) => {
+  prefersDark.addEventListener('change', (event) => {
     if (!localStorage.getItem('theme')) {
-      if (e.matches) {
+      if (event.matches) {
         document.body.classList.add('dark-theme');
       } else {
         document.body.classList.remove('dark-theme');

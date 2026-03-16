@@ -51,18 +51,24 @@
       <div id="unitListContainer"></div>
     </aside>
 
-    <!-- 右侧：播放器和歌词 -->
-    <main class="player-section">
-
-      <div class="book-info">
-        <img id="bookCover" src="" alt="课本封面" class="book-cover" />
-        <div class="unit-info">
-          <div class="unit-title-group">
-            <h2 id="bookName" class="book-name"></h2>
-            <p id="bookLevel" class="book-level"></p>
+    <!-- 右侧：课本选择 + 播放器和歌词 -->
+    <div class="player-column">
+      <label class="book-select-group">
+        <span class="book-select-title">课本</span>
+        <select class="book-select" id="bookSelect">
+          <option value="">选择课本</option>
+        </select>
+      </label>
+      <main class="player-section">
+        <div class="book-info">
+          <img id="bookCover" src="" alt="课本封面" class="book-cover" />
+          <div class="unit-info">
+            <div class="unit-title-group">
+              <h2 id="bookName" class="book-name"></h2>
+              <p id="bookLevel" class="book-level"></p>
+            </div>
           </div>
         </div>
-      </div>
 
       <!-- 上一课/下一课导航按钮 -->
       <section class="control-panel" aria-label="课程与播放控制区">
@@ -73,11 +79,11 @@
                   stroke-linejoin="round" />
           </svg>
         </button>
-
+        <label>
         <select id="unitSelect" class="unit-select">
-          <option value="">请选择 Unit</option>
+          <option value="">选择 Unit</option>
         </select>
-
+        </label>
         <button id="nextUnitBtn" class="nav-btn next-btn" title="下一课">
           <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
             <path d="M8 4L13 9L8 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -91,6 +97,9 @@
             <path class="continuous-icon" d="M8 3v10M3 8l5 5 5-5" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round" />
           </svg>
+        </button>
+        <button id="toggleTranslationBtn" class="toggle-translation-btn" type="button" aria-pressed="false">
+          中
         </button>
         </div>
 
@@ -129,16 +138,20 @@
           <p class="placeholder">选择一个Unit开始学习...</p>
         </div>
         <div class="like-and-support">
-            <p>---谢谢点赞支持---</p>
+            <p>------------------------</p>
             <p>❤️❤️❤️</p>
             <button id="supportBtn" class="support-btn" type="button">打赏支持</button>
         </div>
       </section>
-    </main>
+      </main>
+    </div>
   </div>
 
   <footer class="footer">
-    <a  target="_blank"  href="https://github.com/iChochy/iReader"><span>©2026 iChochy.</span></a>
+    <a  target="_blank"  href="https://ichochy.com"><span>©2026 iChochy.</span></a>
+    <a  target="_blank"  href="https://github.com/iChochy/iReader"><span>GitHub</span></a>
+    <a  target="_blank"  href="https://github.com/iChochy/iReader/issues"><span>issues</span></a>
+    <a href="mailto:qim.it@icloud.com"><span>邮箱反馈</span></a>
   </footer>
 
 </div>
@@ -146,20 +159,18 @@
 <div id="supportModal" class="support-modal" aria-hidden="true" role="dialog" aria-labelledby="supportModalTitle">
   <div class="support-modal-card">
     <button id="supportCloseBtn" class="support-close-btn" type="button" aria-label="关闭弹窗">×</button>
-    <h3 id="supportModalTitle">打赏支持</h3>
+    <h3 id="supportModalTitle">🙏🙏🙏</h3>
     <div class="support-text">
-      <p>80后码农×白血病(CMML)患者，工作已停，药费没停。</p>
-      <p>如果我写的东西对您有用，请打赏点生命值。</p>
-      <p>🙏🙏🙏</p>
-      <p>再次谢谢！</p>
+      <p>80后码农×白血病(CMML)患者</p>
+      <p>工作已停，药费没停</p>
+      <p>如果我写的东西对您有用，求打赏点生命值！</p>
     </div>
     <img
       class="support-qr"
-      src="https://ichochy.com/sponsor.jpg"
+      src="sponsor.jpg"
       alt="赞助二维码"
       loading="lazy"
     />
-    <p class="support-link"><a target="_blank" href="https://tap.ichochy.com">https://tap.ichochy.com</a></p>
   </div>
 </div>
 
