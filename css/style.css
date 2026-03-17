@@ -93,9 +93,9 @@ body {
   line-height: 1.5;
   letter-spacing: -0.01em;
   background:
-    radial-gradient(circle at 12% 8%, rgba(224, 78, 57, 0.14), transparent 40%),
-    radial-gradient(circle at 88% 12%, rgba(31, 138, 122, 0.18), transparent 45%),
-    linear-gradient(180deg, var(--paper-1) 0%, var(--paper-2) 100%);
+          radial-gradient(circle at 12% 8%, rgba(224, 78, 57, 0.14), transparent 40%),
+          radial-gradient(circle at 88% 12%, rgba(31, 138, 122, 0.18), transparent 45%),
+          linear-gradient(180deg, var(--paper-1) 0%, var(--paper-2) 100%);
   transition: background-color 0.35s ease, color 0.35s ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -252,6 +252,7 @@ body.dark-theme .moon-icon {
   align-items: stretch;
   flex: 1;
   min-height: 0;
+  height: 100%;
 }
 
 .unit-list {
@@ -261,8 +262,10 @@ body.dark-theme .moon-icon {
   box-shadow: var(--shadow-sm);
   padding: 18px 0;
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   animation: riseIn 0.6s ease both;
   animation-delay: 0.05s;
 }
@@ -289,6 +292,11 @@ body.dark-theme .moon-icon {
   gap: 6px;
   width: 100%;
   padding: 0 10px 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .unit-item {

@@ -2,17 +2,17 @@
   "books": [
     {
       "key": "YL4A",
-      "title": "YL4A English Book",
+      "title": "YL-4A English Book",
       "bookPath": "https://yl.mleo.site/4A"
     },
     {
       "key": "YL4B",
-      "title": "YL4B English Book",
+      "title": "YL-4B English Book",
       "bookPath": "https://yl.mleo.site/4B"
     },
     {
       "key": "YL5B",
-      "title": "YL5B English Book",
+      "title": "YL-5B English Book",
       "bookPath": "https://yl.mleo.site/5B"
     },
     {
