@@ -5,7 +5,8 @@
 // Update: 2025/12/5 19:41
 // Copyright (c) 2025.
 
-const DEFAULT_BOOK_KEY = 'YL4B';
+const DEFAULT_BOOK_KEY = 'NCE1';
+const PLAY_MODE_STORAGE_KEY = 'playMode';
 
 const qs = (selector, root = document) => root.querySelector(selector);
 const qsa = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -55,7 +56,7 @@ class ReadingSystem {
       playMode: 'single',
       singlePlayEndTime: null,
       playbackRate: 1.0,
-      showTranslation: true,
+      translationMode: 'show',
       availableSpeeds: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
       savedPlayTime: 0,
       isProgressDragging: false
@@ -71,8 +72,6 @@ class ReadingSystem {
       playModeBtn: qs('#playModeBtn'),
       playPauseBtn: qs('#playPauseBtn'),
       progressBar: qs('#progressBar'),
-      progressFill: qs('#progressFill'),
-      progressHandle: qs('#progressHandle'),
       currentTime: qs('#currentTime'),
       duration: qs('#duration'),
       speedBtn: qs('#speedBtn'),
@@ -100,6 +99,7 @@ class ReadingSystem {
     await this.loadBooks();
     await this.applyBookFromHash();
     this.bindEvents();
+    this.loadPlayModePreference();
     this.updatePlayModeUI();
     this.loadTranslationPreference();
     this.updateTranslationToggle();
@@ -151,6 +151,7 @@ class ReadingSystem {
     await this.loadBookConfig();
     this.renderUnitList();
     this.renderUnitSelect();
+    this.resetUnitListScroll();
   }
 
   renderEmptyState(message) {
@@ -159,6 +160,14 @@ class ReadingSystem {
     }
     if (this.dom.unitList) {
       this.dom.unitList.innerHTML = '';
+    }
+    this.resetUnitListScroll();
+  }
+
+  resetUnitListScroll() {
+    const scrollContainer = this.dom.unitList?.closest('.unit-list');
+    if (scrollContainer) {
+      scrollContainer.scrollTop = 0;
     }
   }
 
@@ -206,7 +215,7 @@ class ReadingSystem {
       .join('');
 
     this.dom.bookSelects.forEach((select) => {
-      select.innerHTML = `<option value="">选择课本</option>${options}`;
+      select.innerHTML = `${options}`;
       if (this.state.bookKey) {
         select.value = this.state.bookKey;
       }
@@ -234,7 +243,7 @@ class ReadingSystem {
       .map((unit, index) => `<option value="${index}">${unit.title}</option>`)
       .join('');
 
-    this.dom.unitSelect.innerHTML = `<option value="">选择 Unit</option>${options}`;
+    this.dom.unitSelect.innerHTML = `${options}`;
   }
 
   async loadUnitFromStorage() {
@@ -277,6 +286,7 @@ class ReadingSystem {
     }
 
     if (this.dom.audioPlayer) {
+      this.setPlayButtonDisabled(true);
       this.dom.audioPlayer.src = unit.audio;
       this.dom.audioPlayer.load();
     }
@@ -292,8 +302,9 @@ class ReadingSystem {
       this.dom.audioPlayer.currentTime = 0;
     }
 
-    if (this.dom.progressFill) this.dom.progressFill.style.width = '0%';
-    if (this.dom.progressHandle) this.dom.progressHandle.style.left = '0%';
+    this.setPlayButtonDisabled(true);
+
+    if (this.dom.progressBar) this.dom.progressBar.style.setProperty('--progress', '0%');
     if (this.dom.currentTime) this.dom.currentTime.textContent = '0:00';
     if (this.dom.duration) this.dom.duration.textContent = '0:00';
 
@@ -304,13 +315,20 @@ class ReadingSystem {
 
   updateActiveUnit(unitIndex) {
     if (this.dom.unitList) {
+      let activeItem = null;
+
       this.dom.unitList.querySelectorAll('.unit-item').forEach((item, index) => {
         if (index === unitIndex) {
           item.classList.add('active');
+          activeItem = item;
         } else {
           item.classList.remove('active');
         }
       });
+
+      if (activeItem) {
+        activeItem.scrollIntoView({ block: 'center', inline: 'nearest' });
+      }
     }
 
     if (this.dom.unitSelect) {
@@ -320,6 +338,10 @@ class ReadingSystem {
 
   renderLyrics() {
     if (!this.dom.lyricsDisplay) return;
+
+    if (this.dom.lyricsContainer) {
+      this.dom.lyricsContainer.scrollTop = 0;
+    }
 
     if (!this.state.currentLyrics.length) {
       this.dom.lyricsDisplay.innerHTML = '<p class="placeholder">没有歌词数据</p>';
@@ -381,20 +403,23 @@ class ReadingSystem {
   }
 
   updateProgress() {
-    if (!this.dom.progressFill || !this.dom.progressHandle || !this.dom.currentTime || !this.dom.audioPlayer) return;
+    if (!this.dom.progressBar || !this.dom.audioPlayer) return;
 
     if (this.dom.audioPlayer.duration && !this.state.isProgressDragging) {
       const percent = (this.dom.audioPlayer.currentTime / this.dom.audioPlayer.duration) * 100;
-      this.dom.progressFill.style.width = `${percent}%`;
-      this.dom.progressHandle.style.left = `${percent}%`;
-      this.dom.currentTime.textContent = this.formatTime(this.dom.audioPlayer.currentTime);
+      this.dom.progressBar.style.setProperty('--progress', `${percent}%`);
+      if (this.dom.currentTime) {
+        this.dom.currentTime.textContent = this.formatTime(this.dom.audioPlayer.currentTime);
+      }
     }
   }
 
   updateDuration() {
-    if (!this.dom.duration || !this.dom.audioPlayer) return;
+    if (!this.dom.audioPlayer) return;
 
-    this.dom.duration.textContent = this.formatTime(this.dom.audioPlayer.duration);
+    if (this.dom.duration) {
+      this.dom.duration.textContent = this.formatTime(this.dom.audioPlayer.duration);
+    }
     if (this.state.savedPlayTime > 0 && this.dom.audioPlayer.duration) {
       this.dom.audioPlayer.currentTime = Math.min(this.state.savedPlayTime, this.dom.audioPlayer.duration - 0.1);
       this.state.savedPlayTime = 0;
@@ -410,6 +435,12 @@ class ReadingSystem {
     } else {
       this.dom.playPauseBtn.classList.add('playing');
     }
+  }
+
+  setPlayButtonDisabled(disabled) {
+    if (!this.dom.playPauseBtn) return;
+    this.dom.playPauseBtn.disabled = disabled;
+    this.dom.playPauseBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
   }
 
   formatTime(seconds) {
@@ -491,6 +522,7 @@ class ReadingSystem {
 
   togglePlayMode() {
     this.state.playMode = this.state.playMode === 'single' ? 'continuous' : 'single';
+    localStorage.setItem(PLAY_MODE_STORAGE_KEY, this.state.playMode);
     this.updatePlayModeUI();
   }
 
@@ -499,10 +531,23 @@ class ReadingSystem {
 
     if (this.state.playMode === 'single') {
       this.dom.playModeBtn.title = '单句点读';
+      this.dom.playModeBtn.setAttribute('aria-label', '单句点读');
+      this.dom.playModeBtn.setAttribute('aria-pressed', 'false');
+      this.dom.playModeBtn.dataset.mode = 'single';
       this.dom.playModeBtn.classList.remove('continuous-mode');
     } else {
       this.dom.playModeBtn.title = '连续点读';
+      this.dom.playModeBtn.setAttribute('aria-label', '连续点读');
+      this.dom.playModeBtn.setAttribute('aria-pressed', 'true');
+      this.dom.playModeBtn.dataset.mode = 'continuous';
       this.dom.playModeBtn.classList.add('continuous-mode');
+    }
+  }
+
+  loadPlayModePreference() {
+    const storedMode = localStorage.getItem(PLAY_MODE_STORAGE_KEY);
+    if (storedMode === 'single' || storedMode === 'continuous') {
+      this.state.playMode = storedMode;
     }
   }
 
@@ -601,29 +646,40 @@ class ReadingSystem {
   bindTranslationToggle() {
     if (!this.dom.toggleTranslationBtn) return;
     this.dom.toggleTranslationBtn.addEventListener('click', () => {
-      this.state.showTranslation = !this.state.showTranslation;
-      localStorage.setItem('showTranslation', this.state.showTranslation ? '1' : '0');
+      const modes = ['show', 'hide', 'blur'];
+      const currentIndex = modes.indexOf(this.state.translationMode);
+      const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % modes.length;
+      this.state.translationMode = modes[nextIndex];
+      localStorage.setItem('translationMode', this.state.translationMode);
       this.updateTranslationToggle();
     });
   }
 
   loadTranslationPreference() {
-    const stored = localStorage.getItem('showTranslation');
-    if (stored === '0') {
-      this.state.showTranslation = false;
+    const storedMode = localStorage.getItem('translationMode');
+    if (storedMode === 'show' || storedMode === 'hide' || storedMode === 'blur') {
+      this.state.translationMode = storedMode;
     }
   }
 
   updateTranslationToggle() {
     if (!this.dom.toggleTranslationBtn) return;
-    if (this.state.showTranslation) {
-      document.body.classList.remove('hide-translation');
-      this.dom.toggleTranslationBtn.textContent = '英';
-      this.dom.toggleTranslationBtn.setAttribute('aria-pressed', 'true');
-    } else {
-      document.body.classList.add('hide-translation');
+    const mode = this.state.translationMode;
+    document.body.classList.toggle('hide-translation', mode === 'hide');
+    document.body.classList.toggle('blur-translation', mode === 'blur');
+
+    if (mode === 'show') {
       this.dom.toggleTranslationBtn.textContent = '中';
+      this.dom.toggleTranslationBtn.setAttribute('aria-pressed', 'true');
+      this.dom.toggleTranslationBtn.setAttribute('aria-label', '翻译显示');
+    } else if (mode === 'blur') {
+      this.dom.toggleTranslationBtn.textContent = '模';
+      this.dom.toggleTranslationBtn.setAttribute('aria-pressed', 'mixed');
+      this.dom.toggleTranslationBtn.setAttribute('aria-label', '翻译模糊显示');
+    } else {
+      this.dom.toggleTranslationBtn.textContent = '英';
       this.dom.toggleTranslationBtn.setAttribute('aria-pressed', 'false');
+      this.dom.toggleTranslationBtn.setAttribute('aria-label', '仅显示英文');
     }
   }
 
@@ -729,6 +785,7 @@ class ReadingSystem {
 
     this.dom.progressBar.addEventListener('pointerdown', (event) => {
       this.state.isProgressDragging = true;
+      this.dom.progressBar.classList.add('dragging');
       this.dom.progressBar.setPointerCapture(event.pointerId);
       seekByClientX(event.clientX);
     });
@@ -740,11 +797,18 @@ class ReadingSystem {
 
     this.dom.progressBar.addEventListener('pointerup', (event) => {
       this.state.isProgressDragging = false;
+      this.dom.progressBar.classList.remove('dragging');
       this.dom.progressBar.releasePointerCapture(event.pointerId);
+    });
+
+    this.dom.progressBar.addEventListener('pointercancel', () => {
+      this.state.isProgressDragging = false;
+      this.dom.progressBar.classList.remove('dragging');
     });
 
     this.dom.progressBar.addEventListener('pointerleave', () => {
       this.state.isProgressDragging = false;
+      this.dom.progressBar.classList.remove('dragging');
     });
 
     this.dom.playModeBtn.addEventListener('click', () => {
@@ -761,6 +825,14 @@ class ReadingSystem {
       this.updateDuration();
     });
 
+    this.dom.audioPlayer.addEventListener('canplay', () => {
+      this.setPlayButtonDisabled(false);
+    });
+
+    this.dom.audioPlayer.addEventListener('loadstart', () => {
+      this.setPlayButtonDisabled(true);
+    });
+
     this.dom.audioPlayer.addEventListener('ended', () => {
       this.handleAudioEnded();
       this.updatePlayButton();
@@ -773,6 +845,10 @@ class ReadingSystem {
     this.dom.audioPlayer.addEventListener('pause', () => {
       this.state.singlePlayEndTime = null;
       this.updatePlayButton();
+    });
+
+    this.dom.audioPlayer.addEventListener('error', () => {
+      this.setPlayButtonDisabled(true);
     });
   }
 
