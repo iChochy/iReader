@@ -7,41 +7,12 @@
 
 const DEFAULT_BOOK_KEY = 'NCE1';
 const PLAY_MODE_STORAGE_KEY = 'playMode';
+const BOOK_SELECTION_STORAGE_KEY = 'selectedBookKey';
 
 const qs = (selector, root = document) => root.querySelector(selector);
 const qsa = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-// LRC 解析器
-class LRCParser {
-  static parse(lrcText) {
-    const lines = lrcText.split('\n');
-    const lyrics = [];
-
-    for (const line of lines) {
-      const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.+)/);
-      if (match) {
-        const minutes = parseInt(match[1]);
-        const seconds = parseInt(match[2]);
-        const milliseconds = parseInt(match[3]);
-        const time = minutes * 60 + seconds + milliseconds / 1000 - 0.5;
-
-        // 分割英文和中文（使用 | 分隔符）
-        const text = match[4].trim();
-        const parts = text.split('|').map((p) => p.trim());
-
-        lyrics.push({
-          time,
-          english: parts[0] || '',
-          chinese: parts[1] || '',
-          fullText: text
-        });
-      }
-    }
-
-    return lyrics.sort((a, b) => a.time - b.time);
-  }
-}
 
 class ReadingSystem {
   constructor() {
@@ -129,8 +100,19 @@ class ReadingSystem {
   }
 
   async applyBookFromHash() {
-    const keyFromHash = location.hash.slice(1).trim() || DEFAULT_BOOK_KEY;
-    await this.applyBookChange(keyFromHash);
+    const keyFromHash = location.hash.slice(1).trim();
+    const storedBookKey = this.loadBookPreference();
+    const initialBookKey = keyFromHash || storedBookKey || DEFAULT_BOOK_KEY;
+    await this.applyBookChange(initialBookKey);
+  }
+
+  loadBookPreference() {
+    return localStorage.getItem(BOOK_SELECTION_STORAGE_KEY)?.trim() || '';
+  }
+
+  persistBookPreference(bookKey) {
+    if (!bookKey) return;
+    localStorage.setItem(BOOK_SELECTION_STORAGE_KEY, bookKey);
   }
 
   async applyBookChange(bookKey) {
@@ -146,6 +128,7 @@ class ReadingSystem {
 
     this.state.bookKey = resolved.key || bookKey;
     this.state.bookPath = resolved.bookPath.trim();
+    this.persistBookPreference(this.state.bookKey);
 
     this.updateBookSelects();
     await this.loadBookConfig();
@@ -255,10 +238,12 @@ class ReadingSystem {
       ? clamp(parsed, 0, this.state.units.length - 1)
       : 0;
 
-    await this.loadUnitByIndex(safeIndex);
+    await this.loadUnitByIndex(safeIndex, { shouldScrollUnitIntoView: true });
   }
 
-  async loadUnitByIndex(unitIndex) {
+  async loadUnitByIndex(unitIndex, options = {}) {
+    const { shouldScrollUnitIntoView = false } = options;
+
     this.state.currentUnitIndex = unitIndex;
     localStorage.setItem(`${this.state.bookPath}/currentUnitIndex`, unitIndex);
 
@@ -266,7 +251,7 @@ class ReadingSystem {
     if (!unit) return;
 
     this.resetPlayer();
-    this.updateActiveUnit(unitIndex);
+    this.updateActiveUnit(unitIndex, { shouldScrollUnitIntoView });
     this.updateNavigationButtons();
 
     try {
@@ -313,7 +298,9 @@ class ReadingSystem {
     this.state.singlePlayEndTime = null;
   }
 
-  updateActiveUnit(unitIndex) {
+  updateActiveUnit(unitIndex, options = {}) {
+    const { shouldScrollUnitIntoView = false } = options;
+
     if (this.dom.unitList) {
       let activeItem = null;
 
@@ -326,7 +313,7 @@ class ReadingSystem {
         }
       });
 
-      if (activeItem) {
+      if (activeItem && shouldScrollUnitIntoView) {
         activeItem.scrollIntoView({ block: 'center', inline: 'nearest' });
       }
     }
@@ -942,4 +929,37 @@ function initSupportModal() {
       closeModal();
     }
   });
+}
+
+
+
+// LRC 解析器
+class LRCParser {
+  static parse(lrcText) {
+    const lines = lrcText.split('\n');
+    const lyrics = [];
+
+    for (const line of lines) {
+      const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.+)/);
+      if (match) {
+        const minutes = parseInt(match[1]);
+        const seconds = parseInt(match[2]);
+        const milliseconds = parseInt(match[3]);
+        const time = minutes * 60 + seconds + milliseconds / 1000 - 0.5;
+
+        // 分割英文和中文（使用 | 分隔符）
+        const text = match[4].trim();
+        const parts = text.split('|').map((p) => p.trim());
+
+        lyrics.push({
+          time,
+          english: parts[0] || '',
+          chinese: parts[1] || '',
+          fullText: text
+        });
+      }
+    }
+
+    return lyrics.sort((a, b) => a.time - b.time);
+  }
 }
