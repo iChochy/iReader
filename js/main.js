@@ -1,7 +1,7 @@
 /**
- * 译林英语点读系统 - 应用入口
+ * 英语点读播放器 - 应用入口
  * 轻量级入口文件，负责初始化核心模块
- *
+ * 
  * @module main
  */
 
@@ -12,7 +12,7 @@ import { SupportModal } from './ui/modal.js';
 /**
  * 应用主类
  */
-class YLPlayer {
+class iPlayer {
   /**
    * 初始化应用
    */
@@ -40,15 +40,15 @@ class YLPlayer {
         window.readingSystem = readingSystem;
         window.themeManager = themeManager;
         window.supportModal = supportModal;
-        console.log('YL Player initialized. [DEV MODE]');
+        console.log('Tap Player initialized. [DEV MODE]');
         console.log('Access: window.readingSystem, window.themeManager, window.supportModal');
       } else {
-        console.log('YL Player initialized.');
+        console.log('Tap Player initialized.');
       }
 
       return { readingSystem, themeManager, supportModal };
     } catch (error) {
-      console.error('Failed to initialize YL Player:', error);
+      console.error('Failed to initialize Tap Player:', error);
       document.body.innerHTML =
         '<div style="padding: 20px; color: red; font-family: sans-serif;">' +
         '<h2>应用初始化失败</h2>' +
@@ -65,8 +65,8 @@ class YLPlayer {
  */
 if (document.readyState === 'loading' || document.readyState === 'interactive') {
   window.addEventListener('load', () => {
-    YLPlayer.init();
+    iPlayer.init();
   }, { once: true });
 } else {
-  YLPlayer.init();
+  iPlayer.init();
 }

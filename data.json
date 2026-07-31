@@ -19,6 +19,11 @@
       "key": "YL5B",
       "title": "YL-5B English Book",
       "bookPath": "https://yl.mleo.site/5B"
+    },
+    {
+      "key": "YL6A",
+      "title": "YL-6A English Book",
+      "bookPath": "https://yl.mleo.site/6A"
     }
   ]
 }

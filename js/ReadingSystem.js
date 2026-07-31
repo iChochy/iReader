@@ -1,7 +1,7 @@
 /**
- * 译林英语点读系统 - 核心模块
+ * 英语点读阅读系统 - 核心模块
  * 管理课本加载、单元切换、歌词展示、音频播放等核心功能
- *
+ * 
  * @module ReadingSystem
  */
 
@@ -502,7 +502,6 @@ export class ReadingSystem {
     if (!boundaries) return;
 
     const currentTime = this.dom.audioPlayer.currentTime;
-
     if (currentTime >= boundaries.endTime) {
       if (Number.isFinite(boundaries.startTime)) {
         if (this.state.loopMode === 'click') {
@@ -755,7 +754,6 @@ export class ReadingSystem {
     if (nextMode === 'list') {
       this.state.sentenceLoopIndex = -1;
     }
-    // 从 sentence/click 切换到 off：保留锁定，让当前句子播完再停
 
     setStorage(this.config.STORAGE_KEYS.LOOP_MODE, this.state.loopMode);
     this.syncLoopPlayback();
@@ -1104,7 +1102,7 @@ export class ReadingSystem {
       this.handleSentence();
       this.updateLyricHighlight();
       this.updateProgress();
-    }, 100);
+    }, 1000/30);
 
     on(this.dom.audioPlayer, 'timeupdate', updateLyric);
     on(this.dom.audioPlayer, 'loadedmetadata', () => this.updateDuration());

@@ -1015,10 +1015,6 @@ body.blur-translation .lyric-line:hover .lyric-text {
   }
 }
 
-.lyric-line.pulse {
-  /*animation: lyricPulse 0.4s ease;*/
-}
-
 .lyric-text {
   font-family: var(--font-display);
   font-size: 18px;

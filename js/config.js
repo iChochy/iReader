@@ -1,7 +1,7 @@
 /**
  * 应用配置管理系统
  * 集中管理所有常量、枚举和配置参数
- *
+ * 
  * @module config
  */
 
@@ -10,7 +10,7 @@
  */
 export const CONFIG = {
   // 默认课本标识
-  DEFAULT_BOOK_KEY: 'YL4A',
+  DEFAULT_BOOK_KEY: 'YL5A',
 
   // localStorage 存储键名
   STORAGE_KEYS: {
