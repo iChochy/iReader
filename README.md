@@ -6,8 +6,6 @@
 - 📖 默认资源：《译林英语》4A / 4B / 5A / 5B / 6A
 - 📚 资源仓库参考：[QiLoong/YL-English-Book](https://github.com/QiLoong/YL-English-Book)
 
-> 注：旧版 README 中的 `?bookPath=` 参数为历史用法，当前版本通过 `data.json` 课本注册表 + URL Hash（`#课本Key`）挂载与切换资源，详见下文「外挂资源」。
-
 ## ✨ 功能特性
 
 | 功能 | 说明 |
@@ -201,3 +199,15 @@ iReader/
 - 问题反馈 / 功能建议：[GitHub Issues](https://github.com/iChochy/iReader/issues)
 - 作者博客：[ichochy.com](https://ichochy.com)
 - 如果这个项目对你有帮助，欢迎在页面中点击「打赏支持」☕
+
+
+## ☕ 打赏
+
+请帮忙点赞、收藏和转发
+
+![Sponsor](https://image.ichochy.com/sponsor.jpg)
+
+如果内容帮到过您，求打赏一点生命值(可选)  
+80后码农×白血病(CMML)  
+工作已停，药费没停  
+感谢您的善意，谢谢！！！
