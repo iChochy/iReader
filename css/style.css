@@ -1156,7 +1156,8 @@ body.blur-translation .lyric-line:hover .lyric-text {
 }
 
 .support-qr {
-  margin-top: 14px;
+  margin-top: 12px;
+  margin-bottom: 12px;
   display: block;
   margin-left: auto;
   margin-right: auto;
