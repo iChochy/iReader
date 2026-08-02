@@ -1241,7 +1241,8 @@ body::-webkit-scrollbar-thumb:hover,
 
 @media (max-width: 1068px) {
   #app {
-    padding: 5px 12px;
+    padding: calc(5px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
+      calc(5px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
   }
 
   .container {
@@ -1267,7 +1268,8 @@ body::-webkit-scrollbar-thumb:hover,
   #app {
     height: 100dvh;
     min-height: 100dvh;
-    padding: 2px 5px;
+    padding: calc(2px + env(safe-area-inset-top)) calc(5px + env(safe-area-inset-right))
+      calc(2px + env(safe-area-inset-bottom)) calc(5px + env(safe-area-inset-left));
     gap: 5px;
     overflow: hidden;
   }

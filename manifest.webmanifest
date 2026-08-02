@@ -1,0 +1,23 @@
+{
+  "name": "译林英语 YL 听力播放器",
+  "short_name": "译林英语",
+  "description": "译林英语 YILIN English 听力与课文播放器，支持课本选择、课程列表、逐句播放与中英对照。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "theme_color": "#f7f3ee",
+  "background_color": "#f7f3ee",
+  "categories": ["education", "music"],
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
