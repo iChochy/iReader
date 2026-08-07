@@ -1234,10 +1234,6 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--scroll-thumb-hover);
 }
 
-:focus-visible {
-  outline: 2px solid var(--accent-1);
-  outline-offset: 2px;
-}
 
 @media (max-width: 1068px) {
   #app {
