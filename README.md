@@ -4,7 +4,6 @@
 
 - 🌐 在线体验：[https://tap.ichochy.com](https://tap.ichochy.com)
 - 📖 默认资源：《译林英语》4A / 4B / 5A / 5B / 6A
-- 📚 资源仓库参考：[QiLoong/YL-English-Book](https://github.com/QiLoong/YL-English-Book)
 
 ## ✨ 功能特性
 
