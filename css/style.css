@@ -802,21 +802,40 @@ body.dark-theme .play-btn:disabled {
   box-shadow: 0 8px 16px var(--accent-strong);
 }
 
-.loop-toggle-btn.active {
+.loop-toggle-btn.list {
   background: var(--accent-1);
   border-color: var(--accent-1);
   color: #ffffff;
   box-shadow: 0 8px 16px var(--accent-strong);
 }
 
-.loop-toggle-btn.sentence {
+.loop-toggle-btn.list:hover {
+  background: var(--accent-1);
+  border-color: var(--accent-1);
+  color: #ffffff;
+}
+
+.loop-toggle-btn.book {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: #ffffff;
+  box-shadow: 0 8px 16px rgba(139, 92, 246, 0.35);
+}
+
+.loop-toggle-btn.book:hover {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: #ffffff;
+}
+
+.loop-toggle-btn.one {
   background: var(--teal);
   border-color: var(--teal);
   color: #ffffff;
   box-shadow: 0 8px 16px rgba(31, 138, 122, 0.35);
 }
 
-.loop-toggle-btn.sentence:hover {
+.loop-toggle-btn.one:hover {
   background: var(--teal);
   border-color: var(--teal);
   color: #ffffff;
@@ -835,21 +854,28 @@ body.dark-theme .play-btn:disabled {
   color: #ffffff;
 }
 
-.loop-toggle-btn .repeat-one-icon {
+/* 控制 5 种模式对应的独立图标显示 */
+.loop-toggle-btn svg {
   display: none;
 }
 
-.loop-toggle-btn .loop-icon {
+.loop-toggle-btn:not(.click):not(.one):not(.list):not(.book) .loop-icon-off {
   display: inline-block;
 }
 
-.loop-toggle-btn.sentence .loop-icon,
-.loop-toggle-btn.click .loop-icon {
-  display: none;
+.loop-toggle-btn.click .loop-icon-click {
+  display: inline-block;
 }
 
-.loop-toggle-btn.sentence .repeat-one-icon,
-.loop-toggle-btn.click .repeat-one-icon {
+.loop-toggle-btn.one .loop-icon-one {
+  display: inline-block;
+}
+
+.loop-toggle-btn.list .loop-icon-list {
+  display: inline-block;
+}
+
+.loop-toggle-btn.book .loop-icon-book {
   display: inline-block;
 }
 

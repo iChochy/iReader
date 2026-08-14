@@ -45,7 +45,7 @@ export class ReadingSystem {
       durationEl: qs('#duration'),
       onTick: (currentTime, duration) => this.#onAudioTick(currentTime, duration),
       onPersist: () => this.#saveProgress(),
-      onEnded: () => this.#saveProgress(),
+      onEnded: () => this.#onAudioEnded(),
     });
 
     this.lyricsView = new LyricsView({
@@ -297,7 +297,7 @@ export class ReadingSystem {
   }
 
   #onLyricActivate(index, time) {
-    if (this.state.loopMode === 'sentence' || this.state.loopMode === 'click') {
+    if (this.state.loopMode === 'one' || this.state.loopMode === 'click') {
       this.state.sentenceLoopIndex = index;
     }
     // this.#setHighlight(index);
@@ -314,7 +314,7 @@ export class ReadingSystem {
   }
 
   #lockedSentenceIndex() {
-    if (this.state.loopMode !== 'click' && this.state.loopMode !== 'sentence') return -1;
+    if (this.state.loopMode !== 'click' && this.state.loopMode !== 'one') return -1;
     return this.state.sentenceLoopIndex;
   }
 
@@ -367,15 +367,27 @@ export class ReadingSystem {
     toggleClass(this.speedBtn, 'active', this.state.playbackRate !== 1.0);
   }
 
+  #onAudioEnded() {
+    this.#saveProgress();
+    if (!this.state.units.length) return;
+
+    if (this.state.loopMode === 'book') {
+      const nextIndex = (this.state.currentUnitIndex + 1) % this.state.units.length;
+      this.loadUnitByIndex(nextIndex).then(() => {
+        this.player.play();
+      });
+    }
+  }
+
   #cycleLoopMode() {
     const modes = this.config.LOOP_MODES;
     const nextMode = modes[(modes.indexOf(this.state.loopMode) + 1) % modes.length];
     this.state.loopMode = nextMode;
 
-    if ((nextMode === 'sentence' || nextMode === 'click') && this.state.currentLyricIndex >= 0) {
+    if ((nextMode === 'one' || nextMode === 'click') && this.state.currentLyricIndex >= 0) {
       this.state.sentenceLoopIndex = this.state.currentLyricIndex;
     }
-    if (nextMode === 'list' || nextMode === 'off') {
+    if (nextMode === 'list' || nextMode === 'off' || nextMode === 'book') {
       this.state.sentenceLoopIndex = -1;
     }
 
@@ -390,21 +402,24 @@ export class ReadingSystem {
 
     const mode = this.state.loopMode;
     const isClick = mode === 'click';
+    const isOne = mode === 'one';
     const isList = mode === 'list';
-    const isSentence = mode === 'sentence';
+    const isBook = mode === 'book';
 
     this.loopToggleBtn.setAttribute('aria-pressed', mode !== 'off' ? 'true' : 'false');
-    toggleClass(this.loopToggleBtn, 'active', isList);
-    toggleClass(this.loopToggleBtn, 'sentence', isSentence);
+    toggleClass(this.loopToggleBtn, 'list', isList);
     toggleClass(this.loopToggleBtn, 'click', isClick);
+    toggleClass(this.loopToggleBtn, 'one', isOne);
+    toggleClass(this.loopToggleBtn, 'book', isBook);
 
     const labels = {
-      off: '点句点读',
-      click: '关闭点句点读',
-      list: '关闭循环播放',
-      sentence: '关闭单句循环',
+      off: '关闭循环',
+      click: '单句点读',
+      one: '单句循环',
+      list: '本课循环',
+      book: '本书循环',
     };
-    const label = labels[mode] || labels.off;
+    const label = labels[mode] || '循环播放';
     this.loopToggleBtn.title = label;
     this.loopToggleBtn.setAttribute('aria-label', label);
   }

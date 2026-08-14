@@ -16,7 +16,7 @@ export const CONFIG = {
 
   AVAILABLE_SPEEDS: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
   TRANSLATION_MODES: ['show', 'english', 'chinese', 'blur'],
-  LOOP_MODES: ['off', 'click', 'sentence', 'list'],
+  LOOP_MODES: ['off', 'click', 'one', 'list', 'book'],
 
   PLAYER: {
     MAX_AUDIO_CACHE: 3,
@@ -25,7 +25,7 @@ export const CONFIG = {
   },
 
   UI: {
-    LYRIC_SCROLL_THRESHOLD: 0.22,
+    LYRIC_SCROLL_THRESHOLD: 0.1,
     THEME_ANIMATION_DURATION: 300,
     MODAL_ANIMATION_DURATION: 200,
   },
