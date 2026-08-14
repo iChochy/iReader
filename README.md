@@ -53,7 +53,9 @@ your-book/
 
 ```json
 {
-  "bookCover": "cover.png",
+  "name": "译林英语",
+  "level": "第三册上",
+  "cover": "cover.png",
   "units": [
     { "title": "Unit 1 Hello", "filename": "unit1" },
     { "title": "Unit 2 Nice to meet you", "filename": "unit2" }
@@ -174,8 +176,8 @@ iReader/
 | 存储键 | 内容 |
 | --- | --- |
 | `selectedBookKey` | 最近使用的课本 |
-| `{bookPath}/currentUnitIndex` | 当前单元 |
-| `{bookPath}/{unitIndex}/playTime` | 单元播放进度（秒） |
+| `{bookKey}/currentUnitIndex` | 当前单元 |
+| `{bookKey}/{unitIndex}/playTime` | 单元播放进度（秒） |
 | `playbackRate` | 播放速度 |
 | `loopMode` | 循环模式（off / click / sentence / list） |
 | `translationMode` | 翻译模式（show / english / chinese / blur） |
