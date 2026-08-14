@@ -1,29 +1,39 @@
 {
   "books": [
     {
+      "key": "local-5A",
+      "title": "local-5A",
+      "path": "http://192.168.5.50/YL-English-Book/docs/5A"
+    },
+    {
+      "key": "local-NCE",
+      "title": "local-NCE",
+      "path": "http://192.168.5.50/NCE-English-Book/docs/NCE1"
+    },
+    {
       "key": "YL4A",
       "title": "YL-4A English Book",
-      "bookPath": "https://yl.mleo.site/4A"
+      "path": "https://yl.mleo.site/4A"
     },
     {
       "key": "YL4B",
       "title": "YL-4B English Book",
-      "bookPath": "https://yl.mleo.site/4B"
+      "path": "https://yl.mleo.site/4B"
     },
     {
       "key": "YL5A",
       "title": "YL-5A English Book",
-      "bookPath": "https://yl.mleo.site/5A"
+      "path": "https://yl.mleo.site/5A"
     },
     {
       "key": "YL5B",
       "title": "YL-5B English Book",
-      "bookPath": "https://yl.mleo.site/5B"
+      "path": "https://yl.mleo.site/5B"
     },
     {
       "key": "YL6A",
       "title": "YL-6A English Book",
-      "bookPath": "https://yl.mleo.site/6A"
+      "path": "https://yl.mleo.site/6A"
     }
   ]
 }

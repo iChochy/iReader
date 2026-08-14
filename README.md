@@ -86,7 +86,7 @@ your-book/
    {
      "key": "MYBOOK",
      "title": "My English Book",
-     "bookPath": "https://your-domain.com/your-book"
+     "path": "https://your-domain.com/your-book"
    }
    ```
 
@@ -148,13 +148,15 @@ iReader/
 ├── js/
 │   ├── main.js             # 应用入口
 │   ├── config.js           # 全局配置与状态模板
-│   ├── ReadingSystem.js    # 核心阅读系统（课本/单元/歌词/播放）
+│   ├── ReadingSystem.js    # 阅读系统协调器
 │   ├── LRCParser.js        # LRC 歌词解析器
-│   ├── managers/           # 缓存 / 事件 / 预加载管理器
-│   ├── ui/                 # 主题切换 / 打赏弹窗
-│   └── utils/              # DOM / 存储 / 工具函数
+│   ├── player/             # 音频播放与进度控制
+│   ├── services/           # 课本目录、预加载
+│   ├── managers/           # LRU 缓存
+│   ├── ui/                 # 歌词 / 单元 / 主题 / 弹窗
+│   └── utils/              # DOM / 存储 / 转义
 ├── screenshot/             # 界面截图
-├── favicon.png
+├── favicon.ico
 └── LICENSE
 ```
 
