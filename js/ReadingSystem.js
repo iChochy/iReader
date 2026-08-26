@@ -14,12 +14,28 @@ import {
   getCurrentUnitIndex,
   saveCurrentUnitIndex,
 } from './utils/storage.js';
-import { LRCParser } from './LRCParser.js';
+import { LRCParser } from './utils/LRCParser.js';
 import { BookService } from './services/BookService.js';
 import { PrefetchService } from './services/PrefetchService.js';
 import { AudioController } from './player/AudioController.js';
 import { LyricsView } from './ui/LyricsView.js';
 import { UnitView } from './ui/UnitView.js';
+import { Toast } from './ui/Toast.js';
+
+const LOOP_MODE_LABELS = {
+  off: '关闭循环',
+  click: '单句点读',
+  one: '单句循环',
+  list: '本课循环',
+  book: '本书循环',
+};
+
+const TRANSLATION_LABELS = {
+  show: '显示双语',
+  english: '仅显示英文',
+  chinese: '仅显示中文',
+  blur: '模糊翻译',
+};
 
 export class ReadingSystem {
   constructor() {
@@ -46,6 +62,7 @@ export class ReadingSystem {
       onTick: (currentTime, duration) => this.#onAudioTick(currentTime, duration),
       onPersist: () => this.#saveProgress(),
       onEnded: () => this.#onAudioEnded(),
+      onLoaded: () => this.toast.show('音频已加载', { type: 'success' }),
     });
 
     this.lyricsView = new LyricsView({
@@ -72,6 +89,8 @@ export class ReadingSystem {
     this.speedText = qs('#speedText');
     this.loopToggleBtn = qs('#loopToggleBtn');
     this.toggleTranslationBtn = qs('#toggleTranslationBtn');
+
+    this.toast = new Toast();
 
     this.abort = new AbortController();
     this.#bindChrome();
@@ -220,6 +239,7 @@ export class ReadingSystem {
     this.lyricsView.destroy();
     this.unitView.destroy();
     this.prefetch.clear();
+    this.toast.destroy();
   }
 
   #bindChrome() {
@@ -300,7 +320,7 @@ export class ReadingSystem {
     if (this.state.loopMode === 'one' || this.state.loopMode === 'click') {
       this.state.sentenceLoopIndex = index;
     }
-    // this.#setHighlight(index);
+    this.#setHighlight(index);
     this.player.seek(time);
     this.player.play();
     this.#saveProgress(time);
@@ -350,7 +370,7 @@ export class ReadingSystem {
     if (this.state.loopMode === 'click') {
       this.player.pause();
     }
-    // this.#setHighlight(locked);
+    this.#setHighlight(locked);
   }
 
   #cycleSpeed() {
@@ -360,6 +380,7 @@ export class ReadingSystem {
     this.player.setRate(this.state.playbackRate);
     setStorage(this.config.STORAGE_KEYS.PLAYBACK_RATE, this.state.playbackRate);
     this.#updateSpeedUI();
+    this.toast.show(`播放速度 ${this.state.playbackRate}x`);
   }
 
   #updateSpeedUI() {
@@ -395,6 +416,7 @@ export class ReadingSystem {
     this.player.setLoop(nextMode === 'list');
     this.#updateLoopUI();
     this.#syncHighlight();
+    this.toast.show(LOOP_MODE_LABELS[nextMode]);
   }
 
   #updateLoopUI() {
@@ -412,14 +434,7 @@ export class ReadingSystem {
     toggleClass(this.loopToggleBtn, 'one', isOne);
     toggleClass(this.loopToggleBtn, 'book', isBook);
 
-    const labels = {
-      off: '关闭循环',
-      click: '单句点读',
-      one: '单句循环',
-      list: '本课循环',
-      book: '本书循环',
-    };
-    const label = labels[mode] || '循环播放';
+    const label = LOOP_MODE_LABELS[mode] || '循环播放';
     this.loopToggleBtn.title = label;
     this.loopToggleBtn.setAttribute('aria-label', label);
   }
@@ -430,6 +445,7 @@ export class ReadingSystem {
     this.state.translationMode = modes[(currentIndex + 1) % modes.length];
     setStorage(this.config.STORAGE_KEYS.TRANSLATION_MODE, this.state.translationMode);
     this.lyricsView.applyTranslationMode(this.state.translationMode, this.toggleTranslationBtn);
+    this.toast.show(TRANSLATION_LABELS[this.state.translationMode]);
   }
 
   #saveProgress(time = this.player.currentTime) {

@@ -1,6 +1,6 @@
 /**
  * LRC 歌词解析：`[mm:ss.xx]英文 | 中文`
- * @module LRCParser
+ * @module utils/LRCParser
  */
 
 export class LRCParser {

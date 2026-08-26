@@ -20,7 +20,7 @@ export const CONFIG = {
 
   PLAYER: {
     MAX_AUDIO_CACHE: 3,
-    MAX_LRC_CACHE: 10,
+    MAX_LRC_CACHE: 3,
     TIME_OFFSET: 0.3,
   },
 

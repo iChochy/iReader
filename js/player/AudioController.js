@@ -17,6 +17,7 @@ export class AudioController {
    * @param {(currentTime: number, duration: number) => void} [options.onTick]
    * @param {(currentTime: number) => void} [options.onPersist]
    * @param {() => void} [options.onEnded]
+   * @param {() => void} [options.onLoaded] 音频加载完成（元数据就绪）后触发
    */
   constructor(options) {
     this.audio = options.audio;
@@ -27,6 +28,7 @@ export class AudioController {
     this.onTick = options.onTick;
     this.onPersist = options.onPersist;
     this.onEnded = options.onEnded;
+    this.onLoaded = options.onLoaded;
 
     this.dragging = false;
     this.pendingTime = 0;
@@ -207,6 +209,7 @@ export class AudioController {
     on(this.audio, 'loadedmetadata', () => {
       this.#applyPendingTime();
       this.setDisabled(false);
+      this.onLoaded?.();
     }, { signal });
     on(this.audio, 'canplay', () => this.setDisabled(false), { signal });
     on(this.audio, 'loadstart', () => this.setDisabled(true), { signal });

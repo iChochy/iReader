@@ -21,7 +21,7 @@ export class PrefetchService {
    * @param {{maxLrc?: number, maxAudio?: number}} [options]
    */
   constructor(options = {}) {
-    this.lrcCache = new CacheManager(options.maxLrc ?? 10);
+    this.lrcCache = new CacheManager(options.maxLrc ?? 3);
     this.audioCache = new CacheManager(options.maxAudio ?? 3, disposeAudio);
   }
 
