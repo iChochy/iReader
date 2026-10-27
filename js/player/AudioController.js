@@ -32,6 +32,7 @@ export class AudioController {
 
     this.dragging = false;
     this.pendingTime = 0;
+    this.rate = 1;
     this.abort = new AbortController();
 
     this.#bind();
@@ -56,14 +57,21 @@ export class AudioController {
   setSrc(url, options = {}) {
     if (!this.audio) return;
 
+    const rate = Number.isFinite(options.playbackRate) ? options.playbackRate : this.rate;
+    this.rate = rate;
+
     this.audio.pause();
+    // 换源时浏览器会把 playbackRate 重置为 defaultPlaybackRate，需同步默认值
+    this.audio.defaultPlaybackRate = rate;
     this.audio.src = url;
     this.audio.loop = Boolean(options.loop);
-    this.audio.playbackRate = options.playbackRate ?? 1;
+    this.#applyRate(rate);
     this.pendingTime = Number.isFinite(options.startTime) ? options.startTime : 0;
     this.setDisabled(true);
     this.setProgress(0);
     this.audio.load();
+    // load() 会同步重置倍速，这里补一次
+    this.#applyRate(rate);
   }
 
   setLoop(enabled) {
@@ -71,9 +79,11 @@ export class AudioController {
   }
 
   setRate(rate) {
-    if (this.audio && Number.isFinite(rate)) {
-      this.audio.playbackRate = rate;
-    }
+    if (!Number.isFinite(rate)) return;
+    this.rate = rate;
+    if (!this.audio) return;
+    this.audio.defaultPlaybackRate = rate;
+    this.#applyRate(rate);
   }
 
   async play() {
@@ -223,6 +233,18 @@ export class AudioController {
       this.onEnded?.();
     }, { signal });
     on(this.audio, 'error', () => this.setDisabled(true), { signal });
+  }
+
+  /**
+   * 写入倍速：浏览器不支持该倍速时会抛 NotSupportedError，需容错避免中断换源
+   */
+  #applyRate(rate) {
+    if (!this.audio) return;
+    try {
+      this.audio.playbackRate = rate;
+    } catch (error) {
+      console.warn(`Failed to set playback rate ${rate}:`, error);
+    }
   }
 
   #applyPendingTime() {
